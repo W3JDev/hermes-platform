@@ -1,12 +1,15 @@
 """env-vault main app: FastAPI service for centralized env-var management.
 
-V2: with proper error handling and a /api/debug endpoint for diagnostics.
+V3: bootstrap runs in-process so FERNET_KEY is available to request handlers.
 """
 import os
 import sqlite3
 import json
 import time
 import traceback
+import secrets
+import hashlib
+import base64
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
@@ -18,9 +21,58 @@ from cryptography.fernet import Fernet, InvalidToken
 
 DB_PATH = Path(os.environ.get("DB_PATH", "/data/env-vault.db"))
 STATIC_DIR = Path(__file__).parent.parent / "static"
+DATA_DIR = Path("/data")
+TOKEN_FILE = DATA_DIR / "INITIAL_ADMIN_TOKEN"
 
 _conn: Optional[sqlite3.Connection] = None
 _fernet: Optional[Fernet] = None
+_bootstrap_done = False
+
+
+def _derive_fernet_key(token: str) -> bytes:
+    salt = b"hermes-env-vault-v1"
+    dk = hashlib.pbkdf2_hmac("sha256", token.encode("utf-8"), salt, 200_000, dklen=32)
+    return base64.urlsafe_b64encode(dk)
+
+
+def _get_or_create_token() -> str:
+    """Get token from env, or from /data file, or generate a new one."""
+    token = os.environ.get("ADMIN_TOKEN", "").strip()
+    if token:
+        return token
+    if TOKEN_FILE.exists():
+        token = TOKEN_FILE.read_text().strip()
+        if token:
+            os.environ["ADMIN_TOKEN"] = token
+            return token
+    token = secrets.token_urlsafe(32)
+    TOKEN_FILE.write_text(token)
+    TOKEN_FILE.chmod(0o600)
+    os.environ["ADMIN_TOKEN"] = token
+    return token
+
+
+def _bootstrap():
+    """Run once at app startup. Sets FERNET_KEY env var from ADMIN_TOKEN."""
+    global _fernet, _bootstrap_done
+    if _bootstrap_done:
+        return
+    _bootstrap_done = True
+    # Ensure /data exists
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    # Get or create token
+    token = _get_or_create_token()
+    # Derive FERNET_KEY and store in env
+    fkey = _derive_fernet_key(token).decode("ascii")
+    os.environ["FERNET_KEY"] = fkey
+    os.environ["ADMIN_TOKEN"] = token
+    # Initialize the cached fernet
+    _fernet = Fernet(fkey.encode("ascii"))
+    # Init DB and seed
+    _init_db()
+    seeded = _seed_defaults()
+    import sys
+    print(f"[env-vault] Bootstrap complete. token_len={len(token)} seeded={seeded}", file=sys.stderr, flush=True)
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -37,14 +89,11 @@ def _get_fernet() -> Fernet:
         key = os.environ.get("FERNET_KEY")
         if not key:
             raise RuntimeError("FERNET_KEY not set — bootstrap did not run")
-        try:
-            _fernet = Fernet(key.encode("ascii"))
-        except Exception as e:
-            raise RuntimeError(f"Invalid FERNET_KEY: {e}")
+        _fernet = Fernet(key.encode("ascii"))
     return _fernet
 
 
-def init_db():
+def _init_db():
     conn = _get_conn()
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS vars (
@@ -83,11 +132,11 @@ SEED_VARS = [
 ]
 
 
-def seed_defaults():
+def _seed_defaults() -> int:
     conn = _get_conn()
     fernet = _get_fernet()
     cur = conn.cursor()
-    seeded_count = 0
+    seeded = 0
     for name, scope, value in SEED_VARS:
         cur.execute("SELECT name FROM vars WHERE name = ?", (name,))
         if cur.fetchone():
@@ -98,9 +147,9 @@ def seed_defaults():
             (name, encrypted, scope, int(time.time())),
         )
         _write_audit(conn, "seed", name, "system", None)
-        seeded_count += 1
+        seeded += 1
     conn.commit()
-    return seeded_count
+    return seeded
 
 
 def _write_audit(conn, action, name, actor, detail):
@@ -111,7 +160,6 @@ def _write_audit(conn, action, name, actor, detail):
 
 
 def _decrypt_value(fernet, encrypted: bytes) -> str:
-    """Decrypt a value, returning empty string on failure."""
     try:
         return fernet.decrypt(encrypted).decode("utf-8")
     except (InvalidToken, Exception):
@@ -131,17 +179,16 @@ def _require_admin(request: Request) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _bootstrap()
     yield
 
 
 app = FastAPI(title="env-vault", lifespan=lifespan)
 
 
-# Custom exception handler — always return JSON with traceback
 @app.exception_handler(Exception)
 async def exception_handler(request: Request, exc: Exception):
     tb = traceback.format_exc()
-    # Log to stderr (visible in deploy logs)
     import sys
     print(f"[env-vault] EXCEPTION: {exc}\n{tb}", file=sys.stderr, flush=True)
     return JSONResponse(
@@ -165,7 +212,6 @@ def health():
 
 @app.get("/api/debug")
 def debug():
-    """Diagnostic endpoint: shows env state and DB state. No auth required for debugging."""
     try:
         conn = _get_conn()
         cur = conn.cursor()
@@ -177,7 +223,6 @@ def debug():
         var_count = f"error: {e}"
         audit_count = "n/a"
 
-    # Get ADMIN_TOKEN first 8 chars (for debugging without leaking)
     token = os.environ.get("ADMIN_TOKEN", "")
     token_preview = token[:8] + "..." if len(token) > 8 else token
 
@@ -190,14 +235,8 @@ def debug():
             "DB_PATH": str(DB_PATH),
             "PORT": os.environ.get("PORT", "?"),
         },
-        "fernet": {
-            "loaded": _fernet is not None,
-        },
-        "db": {
-            "var_count": var_count,
-            "audit_count": audit_count,
-        },
-        "scope_filter_supported": ["shared", "profile:*"],
+        "fernet": {"loaded": _fernet is not None},
+        "db": {"var_count": var_count, "audit_count": audit_count},
     }
 
 
@@ -321,7 +360,6 @@ def get_audit(request: Request, limit: int = 100):
     ]
 
 
-# Serve the static UI
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
