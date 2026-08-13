@@ -1,16 +1,20 @@
-"""env-vault main app: FastAPI service for centralized env-var management."""
+"""env-vault main app: FastAPI service for centralized env-var management.
+
+V2: with proper error handling and a /api/debug endpoint for diagnostics.
+"""
 import os
 import sqlite3
 import json
 import time
+import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 
 DB_PATH = Path(os.environ.get("DB_PATH", "/data/env-vault.db"))
 STATIC_DIR = Path(__file__).parent.parent / "static"
@@ -33,7 +37,10 @@ def _get_fernet() -> Fernet:
         key = os.environ.get("FERNET_KEY")
         if not key:
             raise RuntimeError("FERNET_KEY not set — bootstrap did not run")
-        _fernet = Fernet(key.encode("ascii"))
+        try:
+            _fernet = Fernet(key.encode("ascii"))
+        except Exception as e:
+            raise RuntimeError(f"Invalid FERNET_KEY: {e}")
     return _fernet
 
 
@@ -80,6 +87,7 @@ def seed_defaults():
     conn = _get_conn()
     fernet = _get_fernet()
     cur = conn.cursor()
+    seeded_count = 0
     for name, scope, value in SEED_VARS:
         cur.execute("SELECT name FROM vars WHERE name = ?", (name,))
         if cur.fetchone():
@@ -90,7 +98,9 @@ def seed_defaults():
             (name, encrypted, scope, int(time.time())),
         )
         _write_audit(conn, "seed", name, "system", None)
+        seeded_count += 1
     conn.commit()
+    return seeded_count
 
 
 def _write_audit(conn, action, name, actor, detail):
@@ -98,6 +108,14 @@ def _write_audit(conn, action, name, actor, detail):
         "INSERT INTO audit (ts, action, name, actor, detail) VALUES (?, ?, ?, ?, ?)",
         (int(time.time()), action, name, actor, json.dumps(detail) if detail else None),
     )
+
+
+def _decrypt_value(fernet, encrypted: bytes) -> str:
+    """Decrypt a value, returning empty string on failure."""
+    try:
+        return fernet.decrypt(encrypted).decode("utf-8")
+    except (InvalidToken, Exception):
+        return ""
 
 
 def _require_admin(request: Request) -> str:
@@ -113,16 +131,74 @@ def _require_admin(request: Request) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # init handled in bootstrap; this is just a sanity check
     yield
 
 
 app = FastAPI(title="env-vault", lifespan=lifespan)
 
 
+# Custom exception handler — always return JSON with traceback
+@app.exception_handler(Exception)
+async def exception_handler(request: Request, exc: Exception):
+    tb = traceback.format_exc()
+    # Log to stderr (visible in deploy logs)
+    import sys
+    print(f"[env-vault] EXCEPTION: {exc}\n{tb}", file=sys.stderr, flush=True)
+    return JSONResponse(
+        status_code=500,
+        content={"error": str(exc), "type": type(exc).__name__},
+    )
+
+
 @app.get("/api/health")
 def health():
-    return {"ok": True}
+    return {
+        "ok": True,
+        "fernet_loaded": _fernet is not None,
+        "fernet_key_set": bool(os.environ.get("FERNET_KEY")),
+        "admin_token_set": bool(os.environ.get("ADMIN_TOKEN")),
+        "admin_token_len": len(os.environ.get("ADMIN_TOKEN", "")),
+        "db_path": str(DB_PATH),
+        "db_exists": DB_PATH.exists(),
+    }
+
+
+@app.get("/api/debug")
+def debug():
+    """Diagnostic endpoint: shows env state and DB state. No auth required for debugging."""
+    try:
+        conn = _get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM vars")
+        var_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM audit")
+        audit_count = cur.fetchone()[0]
+    except Exception as e:
+        var_count = f"error: {e}"
+        audit_count = "n/a"
+
+    # Get ADMIN_TOKEN first 8 chars (for debugging without leaking)
+    token = os.environ.get("ADMIN_TOKEN", "")
+    token_preview = token[:8] + "..." if len(token) > 8 else token
+
+    return {
+        "env": {
+            "ADMIN_TOKEN_set": bool(token),
+            "ADMIN_TOKEN_len": len(token),
+            "ADMIN_TOKEN_preview": token_preview,
+            "FERNET_KEY_set": bool(os.environ.get("FERNET_KEY")),
+            "DB_PATH": str(DB_PATH),
+            "PORT": os.environ.get("PORT", "?"),
+        },
+        "fernet": {
+            "loaded": _fernet is not None,
+        },
+        "db": {
+            "var_count": var_count,
+            "audit_count": audit_count,
+        },
+        "scope_filter_supported": ["shared", "profile:*"],
+    }
 
 
 @app.get("/api/vars")
@@ -138,10 +214,7 @@ def list_vars(request: Request, scope: Optional[str] = None):
     fernet = _get_fernet()
     out = []
     for r in rows:
-        try:
-            value = fernet.decrypt(r["value_encrypted"]).decode("utf-8")
-        except Exception:
-            value = ""
+        value = _decrypt_value(fernet, r["value_encrypted"])
         out.append({
             "name": r["name"],
             "scope": r["scope"],
@@ -165,7 +238,7 @@ def get_var(name: str, request: Request):
         conn.commit()
         raise HTTPException(status_code=404, detail=f"Variable '{name}' not found")
     fernet = _get_fernet()
-    value = fernet.decrypt(row["value_encrypted"]).decode("utf-8")
+    value = _decrypt_value(fernet, row["value_encrypted"])
     _write_audit(conn, "get", name, "admin", {"found": True})
     conn.commit()
     return {"name": row["name"], "value": value, "scope": row["scope"], "updated_at": row["updated_at"]}
