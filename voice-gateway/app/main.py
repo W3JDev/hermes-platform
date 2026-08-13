@@ -153,18 +153,46 @@ async def upload_to_minio(key: str, audio: bytes) -> Optional[str]:
 
 
 async def call_minimax_tts(text: str, voice: str, model: str) -> bytes:
-    """Call MiniMax TTS API. The endpoint is OpenAI-compatible."""
+    """Call MiniMax TTS API v2 (t2a_v2 endpoint with hex-encoded response).
+
+    The MiniMax /v1/t2a_v2 endpoint is the production TTS API. It expects
+    `text` (not `input`) and `voice_setting.voice_id` (not `voice`).
+    Response is JSON with hex-encoded audio in `data.audio` (or `data.audio_hex`).
+    """
     if not API_KEY:
         raise HTTPException(status_code=503, detail="MINIMAX_API_KEY not configured")
-    url = f"{MINIMAX_BASE_URL}{MINIMAX_TTS_ENDPOINT}"
+    url = f"{MINIMAX_BASE_URL}/v1/t2a_v2"
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
-    body = {"model": model, "input": text, "voice": voice}
+    body = {
+        "model": model,
+        "text": text,
+        "stream": False,
+        "voice_setting": {
+            "voice_id": voice,
+            "speed": 1.0,
+            "vol": 1.0,
+            "pitch": 0,
+        },
+        "audio_setting": {
+            "sample_rate": 32000,
+            "bitrate": 128000,
+            "format": "mp3",
+        },
+    }
     async with httpx.AsyncClient(timeout=60) as client:
         r = await client.post(url, headers=headers, json=body)
     if r.status_code != 200:
         logger.error(f"[voice-gateway] MiniMax TTS failed: {r.status_code} {r.text[:200]}")
         raise HTTPException(status_code=502, detail=f"MiniMax TTS returned {r.status_code}: {r.text[:200]}")
-    return r.content
+    data = r.json()
+    if data.get("base_resp", {}).get("status_code", 0) != 0:
+        msg = data.get("base_resp", {}).get("status_msg", "unknown")
+        raise HTTPException(status_code=502, detail=f"MiniMax error: {msg}")
+    # Audio is hex-encoded in data.audio
+    audio_hex = data.get("data", {}).get("audio") or data.get("data", {}).get("audio_hex", "")
+    if not audio_hex:
+        raise HTTPException(status_code=502, detail="MiniMax returned no audio")
+    return bytes.fromhex(audio_hex)
 
 
 class SynthesizeRequest(BaseModel):
