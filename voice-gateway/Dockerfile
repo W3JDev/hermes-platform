@@ -2,10 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY voice-gateway/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app/ ./app/
+COPY voice-gateway/app/ ./app/
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8202

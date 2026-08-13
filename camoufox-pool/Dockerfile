@@ -1,7 +1,9 @@
 FROM mcr.microsoft.com/playwright:v1.45.0-jammy
 
+# Build context is the REPO ROOT, not this Dockerfile's directory.
 WORKDIR /app
 
+# Install system deps (camoufox + chrome libs)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3-pip curl ca-certificates fonts-liberation libnss3 libatk1.0-0 \
         libatk-bridge2.0-0 libcups2 libxkbcommon0 libxcomposite1 libxdamage1 \
@@ -9,16 +11,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install camoufox python package
-RUN pip3 install --no-cache-dir --break-system-packages camoufox==0.4.10 || \
-    pip3 install --no-cache-dir --break-system-packages \
-        "camoufox @ git+https://github.com/nicedouble/camoufox-py.git"
+RUN pip3 install --no-cache-dir --break-system-packages "camoufox @ git+https://github.com/nicedouble/camoufox-py.git" || \
+    pip3 install --no-cache-dir --break-system-packages camoufox==0.4.10
 
-RUN python3 -m camoufox fetch
+RUN python3 -m camoufox fetch || true
 
-COPY requirements.txt .
+COPY camoufox-pool/requirements.txt .
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
-COPY app/ ./app/
+COPY camoufox-pool/app/ ./app/
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8201

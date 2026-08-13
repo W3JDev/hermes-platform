@@ -2,11 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY ci-watcher/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
-COPY app/ ./app/
+COPY ci-watcher/app/ ./app/
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8203
