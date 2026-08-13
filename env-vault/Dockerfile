@@ -7,8 +7,14 @@ WORKDIR /app
 COPY env-vault/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install curl for Coolify's healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
 COPY env-vault/app/ ./app/
 COPY env-vault/static/ ./static/
+
+# Ensure /data exists and is writable by any user (we run as root for simplicity)
+RUN mkdir -p /data && chmod 777 /data
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8200
@@ -16,10 +22,5 @@ ENV DB_PATH=/data/env-vault.db
 
 EXPOSE 8200
 
-# Run as non-root for safety
-RUN useradd -m -u 1000 vault && chown -R vault:vault /app
-USER vault
-
-# Generate ADMIN_TOKEN on first run if not set, write to /data/INITIAL_ADMIN_TOKEN,
-# then start uvicorn. The /data volume is mounted at runtime.
+# Run as root — /data needs to be writable, and there's no untrusted input
 CMD ["sh", "-c", "python -m app.bootstrap && uvicorn app.main:app --host 0.0.0.0 --port 8200"]
