@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>env-vault</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root {
+    --bg: #0e1116;
+    --bg-elev: #161b22;
+    --bg-elev-2: #1f242c;
+    --fg: #e6edf3;
+    --fg-dim: #8b949e;
+    --border: #30363d;
+    --accent: #2f81f7;
+    --accent-hover: #4493f8;
+    --danger: #f85149;
+    --success: #3fb950;
+    --warn: #d29922;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; background: var(--bg); color: var(--fg); padding: 0; }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--bg-elev); }
+  h1 { font-size: 18px; font-weight: 600; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: var(--bg-elev-2); color: var(--fg-dim); margin-left: 8px; }
+  .actions { display: flex; gap: 8px; align-items: center; }
+  button { background: var(--bg-elev-2); color: var(--fg); border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  button:hover { background: var(--border); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+  button.primary:hover { background: var(--accent-hover); }
+  button.danger { background: var(--danger); border-color: var(--danger); color: white; }
+  input, select { background: var(--bg); color: var(--fg); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 13px; }
+  main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .toolbar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
+  .toolbar input { flex: 1; max-width: 400px; }
+  .toolbar label { display: flex; align-items: center; gap: 6px; color: var(--fg-dim); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--fg-dim); font-weight: 500; font-size: 12px; text-transform: uppercase; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover { background: var(--bg-elev); }
+  .scope-tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--bg-elev-2); color: var(--fg-dim); }
+  .scope-profile { background: rgba(47, 129, 247, 0.15); color: #79c0ff; }
+  .scope-shared { background: rgba(63, 185, 80, 0.15); color: #56d364; }
+  .value-masked { font-family: monospace; color: var(--fg-dim); }
+  .value-revealed { font-family: monospace; color: var(--fg); }
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10; align-items: center; justify-content: center; }
+  .modal.open { display: flex; }
+  .modal-content { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 24px; width: 480px; max-width: 90vw; }
+  .modal h2 { font-size: 16px; margin-bottom: 16px; }
+  .modal label { display: block; font-size: 12px; color: var(--fg-dim); margin-bottom: 4px; margin-top: 12px; }
+  .modal input, .modal select { width: 100%; }
+  .modal .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+  .empty { text-align: center; padding: 40px; color: var(--fg-dim); }
+  .login { max-width: 400px; margin: 100px auto; padding: 24px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; }
+  .login h1 { margin-bottom: 16px; }
+  .login input { width: 100%; margin-bottom: 12px; }
+  .login .hint { color: var(--fg-dim); font-size: 12px; margin-top: 12px; }
+  pre { font-size: 11px; background: var(--bg-elev-2); padding: 8px; border-radius: 4px; overflow-x: auto; margin-top: 8px; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg-elev-2); border: 1px solid var(--border); padding: 12px 16px; border-radius: 6px; z-index: 20; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="login" v-if="!token">
+    <h1>env-vault</h1>
+    <p style="color: var(--fg-dim); font-size: 13px; margin-bottom: 16px;">Enter your admin token to continue.</p>
+    <input v-model="tokenInput" type="password" placeholder="Admin token" @keyup.enter="login">
+    <button class="primary" @click="login" style="width: 100%;">Unlock</button>
+    <div class="hint">The token is generated on first container start and printed to logs. It's also written to <code>/data/INITIAL_ADMIN_TOKEN</code> inside the container.</div>
+  </div>
+
+  <div v-else>
+    <header>
+      <div>
+        <h1>env-vault <span class="pill">Hermes Platform</span></h1>
+      </div>
+      <div class="actions">
+        <button @click="showAdd = true" class="primary">+ New variable</button>
+        <button @click="showHelp = !showHelp">{{ showHelp ? 'Hide' : 'How to use' }}</button>
+        <button @click="logout">Lock</button>
+      </div>
+    </header>
+
+    <main>
+      <div v-if="showHelp" style="background: var(--bg-elev); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-bottom: 16px; font-size: 12px;">
+        <strong>How to use env-vault from a service:</strong>
+        <pre>curl -H "Authorization: Bearer $TOKEN" $ENV_VAULT_URL/api/vars/MINIMAX_API_KEY
+# {"name":"MINIMAX_API_KEY","value":"...","scope":"shared","updated_at":1234}</pre>
+        <strong>Web UI features:</strong>
+        <ul style="margin-top: 8px; padding-left: 20px; line-height: 1.6;">
+          <li>Search filters by name in real time.</li>
+          <li>Scope filter shows only <code>shared</code> or per-profile vars.</li>
+          <li>Click a masked value to reveal (and re-mask on second click).</li>
+          <li>Double-click a row to edit the value or scope.</li>
+          <li>Delete is irreversible — confirm in the modal.</li>
+        </ul>
+      </div>
+
+      <div class="toolbar">
+        <input v-model="search" placeholder="Search by name...">
+        <label>Scope:
+          <select v-model="scopeFilter">
+            <option value="">all</option>
+            <option value="shared">shared</option>
+            <option value="profile:">profile:*</option>
+          </select>
+        </label>
+        <span style="color: var(--fg-dim); font-size: 12px;">{{ filtered.length }} of {{ vars.length }} variables</span>
+      </div>
+
+      <table v-if="filtered.length">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Scope</th>
+            <th>Value</th>
+            <th>Updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="v in filtered" :key="v.name">
+            <td style="font-family: monospace;">{{ v.name }}</td>
+            <td>
+              <span class="scope-tag" :class="v.scope.startsWith('profile:') ? 'scope-profile' : 'scope-shared'">
+                {{ v.scope }}
+              </span>
+            </td>
+            <td>
+              <span :class="revealed[v.name] ? 'value-revealed' : 'value-masked'"
+                    @click="toggleReveal(v.name)" style="cursor: pointer;">
+                {{ revealed[v.name] ? revealedValues[v.name] : maskValue(v.last4) }}
+              </span>
+            </td>
+            <td style="color: var(--fg-dim); font-size: 12px;">{{ formatTime(v.updated_at) }}</td>
+            <td>
+              <button @click="editVar(v)">Edit</button>
+              <button @click="deleteVar(v)" class="danger" style="margin-left: 4px;">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-else class="empty">No variables match your filter.</div>
+    </main>
+
+    <!-- Add/Edit modal -->
+    <div class="modal" :class="{open: showAdd || showEdit}">
+      <div class="modal-content" v-if="showAdd || showEdit">
+        <h2>{{ showEdit ? 'Edit variable' : 'New variable' }}</h2>
+        <label>Name</label>
+        <input v-model="form.name" :disabled="showEdit" placeholder="UPPER_SNAKE_CASE">
+        <label>Value</label>
+        <input v-model="form.value" type="text" :placeholder="showEdit ? '(unchanged)' : 'value'">
+        <label>Scope</label>
+        <select v-model="form.scope">
+          <option value="shared">shared</option>
+          <option v-for="p in profileNames" :key="p" :value="'profile:' + p">profile:{{ p }}</option>
+        </select>
+        <div class="row">
+          <button @click="cancelForm">Cancel</button>
+          <button class="primary" @click="saveForm">{{ showEdit ? 'Save' : 'Create' }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/vue@3.4.27/dist/vue.global.prod.js"></script>
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+
+createApp({
+  setup() {
+    const token = ref(localStorage.getItem('env_vault_token') || '');
+    const tokenInput = ref('');
+    const vars = ref([]);
+    const revealed = ref({});
+    const revealedValues = ref({});
+    const search = ref('');
+    const scopeFilter = ref('');
+    const showAdd = ref(false);
+    const showEdit = ref(false);
+    const showHelp = ref(false);
+    const form = ref({ name: '', value: '', scope: 'shared' });
+    const profileNames = computed(() => {
+      const ps = new Set();
+      for (const v of vars.value) {
+        if (v.scope.startsWith('profile:')) ps.add(v.scope.slice(8));
+      }
+      return Array.from(ps).sort();
+    });
+
+    const filtered = computed(() => {
+      let r = vars.value;
+      if (search.value) {
+        const q = search.value.toLowerCase();
+        r = r.filter(v => v.name.toLowerCase().includes(q));
+      }
+      if (scopeFilter.value) {
+        if (scopeFilter.value === 'profile:') {
+          r = r.filter(v => v.scope.startsWith('profile:'));
+        } else {
+          r = r.filter(v => v.scope === scopeFilter.value);
+        }
+      }
+      return r;
+    });
+
+    function maskValue(last4) {
+      if (!last4) return '—';
+      return '••••••••' + last4;
+    }
+
+    function formatTime(ts) {
+      if (!ts) return '—';
+      return new Date(ts * 1000).toLocaleString();
+    }
+
+    async function api(method, path, body) {
+      const opts = { method, headers: { 'Authorization': 'Bearer ' + token.value, 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const r = await fetch(path, opts);
+      if (r.status === 401) { logout(); throw new Error('Unauthorized'); }
+      if (!r.ok) {
+        const t = await r.text();
+        try { throw new Error(JSON.parse(t).detail || t); } catch (e) { throw new Error(e.message || t); }
+      }
+      return r.status === 204 ? null : r.json();
+    }
+
+    async function refresh() {
+      vars.value = await api('GET', '/api/vars');
+    }
+
+    async function toggleReveal(name) {
+      if (revealed.value[name]) {
+        revealed.value[name] = false;
+        delete revealedValues.value[name];
+        return;
+      }
+      try {
+        const v = await api('GET', '/api/vars/' + encodeURIComponent(name));
+        revealedValues.value[name] = v.value;
+        revealed.value[name] = true;
+      } catch (e) { toast('Failed to reveal: ' + e.message); }
+    }
+
+    function editVar(v) {
+      form.value = { name: v.name, value: '', scope: v.scope };
+      showEdit.value = true;
+    }
+
+    async function saveForm() {
+      try {
+        if (showEdit.value) {
+          const body = {};
+          if (form.value.value) body.value = form.value.value;
+          if (form.value.scope) body.scope = form.value.scope;
+          await api('PUT', '/api/vars/' + encodeURIComponent(form.value.name), body);
+        } else {
+          await api('POST', '/api/vars', form.value);
+        }
+        cancelForm();
+        await refresh();
+        toast(showEdit.value ? 'Updated.' : 'Created.');
+      } catch (e) { toast('Error: ' + e.message); }
+    }
+
+    async function deleteVar(v) {
+      if (!confirm(`Delete variable "${v.name}"? This cannot be undone.`)) return;
+      try {
+        await api('DELETE', '/api/vars/' + encodeURIComponent(v.name));
+        await refresh();
+        toast('Deleted.');
+      } catch (e) { toast('Error: ' + e.message); }
+    }
+
+    function cancelForm() {
+      showAdd.value = false;
+      showEdit.value = false;
+      form.value = { name: '', value: '', scope: 'shared' };
+    }
+
+    function login() {
+      if (!tokenInput.value.trim()) return;
+      token.value = tokenInput.value.trim();
+      localStorage.setItem('env_vault_token', token.value);
+      tokenInput.value = '';
+      refresh().catch(e => { if (e.message.includes('Unauthorized')) logout(); else toast('Error: ' + e.message); });
+    }
+
+    function logout() {
+      token.value = '';
+      localStorage.removeItem('env_vault_token');
+      vars.value = [];
+    }
+
+    function toast(msg) {
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+
+    onMounted(() => { if (token.value) refresh().catch(() => logout()); });
+
+    return { token, tokenInput, vars, revealed, revealedValues, search, scopeFilter, showAdd, showEdit, showHelp, form, profileNames, filtered, maskValue, formatTime, toggleReveal, editVar, saveForm, deleteVar, cancelForm, login, logout };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
