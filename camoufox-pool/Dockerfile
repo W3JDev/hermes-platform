@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY camoufox-pool/requirements.txt .
-RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
+# Ubuntu 22.04 pip (22.0) has no --break-system-packages
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Fetch browser binaries; ignore failure so image still builds if network flakes
 RUN python3 -m camoufox fetch || true
