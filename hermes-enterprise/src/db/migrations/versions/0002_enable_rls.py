@@ -25,7 +25,7 @@ TABLES_WITH_RLS = [
 
 def upgrade() -> None:
     # 1. Create helper functions
-        op.execute("""
+    op.execute("""
 CREATE OR REPLACE FUNCTION current_app_tenant_id() RETURNS UUID AS $$
     BEGIN
         RETURN NULLIF(current_setting('app.current_tenant_id', true), '')::uuid;
@@ -63,7 +63,7 @@ CREATE OR REPLACE FUNCTION is_system_bypass() RETURNS BOOLEAN AS $$
     """)
 
     # 2. Stored Database Function: search_hybrid_memories (PROJECT.md line 111)
-        op.execute("""
+    op.execute("""
 CREATE OR REPLACE FUNCTION search_hybrid_memories(
         p_tenant_id UUID,
         p_user_id UUID,
@@ -154,7 +154,7 @@ CREATE OR REPLACE FUNCTION search_hybrid_memories(
 
     # 4. Create Isolation Policies
     # Tenants
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS tenant_isolation_policy ON tenants;
     """)
     op.execute("""
@@ -165,7 +165,7 @@ CREATE POLICY tenant_isolation_policy ON tenants
     """)
 
     # Users
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS users_isolation_policy ON users;
     """)
     op.execute("""
@@ -188,7 +188,7 @@ CREATE POLICY users_isolation_policy ON users
     """)
 
     # User Sessions
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS user_sessions_isolation_policy ON user_sessions;
     """)
     op.execute("""
@@ -211,7 +211,7 @@ CREATE POLICY user_sessions_isolation_policy ON user_sessions
     """)
 
     # Invitations
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS invitations_isolation_policy ON invitations;
     """)
     op.execute("""
@@ -234,7 +234,7 @@ CREATE POLICY invitations_isolation_policy ON invitations
     """)
 
     # User Preferences
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS user_preferences_isolation_policy ON user_preferences;
     """)
     op.execute("""
@@ -257,7 +257,7 @@ CREATE POLICY user_preferences_isolation_policy ON user_preferences
     """)
 
     # Conversations
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS conversations_isolation_policy ON conversations;
     """)
     op.execute("""
@@ -280,7 +280,7 @@ CREATE POLICY conversations_isolation_policy ON conversations
     """)
 
     # Messages
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS messages_isolation_policy ON messages;
     """)
     op.execute("""
@@ -303,7 +303,7 @@ CREATE POLICY messages_isolation_policy ON messages
     """)
 
     # User Files
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS user_files_isolation_policy ON user_files;
     """)
     op.execute("""
@@ -326,7 +326,7 @@ CREATE POLICY user_files_isolation_policy ON user_files
     """)
 
     # Memory Embeddings
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS memory_embeddings_isolation_policy ON memory_embeddings;
     """)
     op.execute("""
@@ -349,7 +349,7 @@ CREATE POLICY memory_embeddings_isolation_policy ON memory_embeddings
     """)
 
     # Token Usage
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS token_usage_isolation_policy ON token_usage;
     """)
     op.execute("""
@@ -372,7 +372,7 @@ CREATE POLICY token_usage_isolation_policy ON token_usage
     """)
 
     # Audit Logs
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS audit_logs_select_policy ON audit_logs;
     """)
     op.execute("""
@@ -399,7 +399,7 @@ CREATE POLICY audit_logs_insert_policy ON audit_logs
     """)
 
     # Tenant Gateway Configs
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS tenant_gateway_configs_isolation_policy ON tenant_gateway_configs;
     """)
     op.execute("""
@@ -422,7 +422,7 @@ CREATE POLICY tenant_gateway_configs_isolation_policy ON tenant_gateway_configs
     """)
 
     # User Gateway Bindings
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS user_gateway_bindings_isolation_policy ON user_gateway_bindings;
     """)
     op.execute("""
@@ -445,7 +445,7 @@ CREATE POLICY user_gateway_bindings_isolation_policy ON user_gateway_bindings
     """)
 
     # Gateway Conversational Sessions
-        op.execute("""
+    op.execute("""
 DROP POLICY IF EXISTS gateway_conversational_sessions_isolation_policy ON gateway_conversational_sessions;
     """)
     op.execute("""
