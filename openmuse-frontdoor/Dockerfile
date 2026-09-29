@@ -3,25 +3,21 @@ FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 ENV CI=true
 
-# Copy package descriptors
+# Copy manifests: root + pnpm workspace members (apps/mobile, apps/worker)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY apps/server/package.json ./apps/server/
 COPY apps/mobile/package.json ./apps/mobile/
 COPY apps/worker/package.json ./apps/worker/
-COPY packages/domain/package.json ./packages/domain/
-COPY packages/integrations/package.json ./packages/integrations/
-COPY packages/backends/package.json ./packages/backends/
 
 RUN corepack enable \
   && corepack prepare pnpm@11.19.0 --activate \
   && pnpm install --frozen-lockfile
 
-# Copy source tree
+# Copy source tree (server build covers apps/server + packages per tsconfig.build.json)
 COPY tsconfig.json tsconfig.build.json biome.json ./
 COPY apps ./apps
 COPY packages ./packages
 
-# Build backend and server
+# Build backend server -> dist/apps/server/src/index.js
 RUN pnpm build:server
 
 FROM node:22-bookworm-slim AS runner
@@ -40,10 +36,6 @@ RUN groupadd --system --gid 1001 openmuse \
 COPY --from=builder --chown=openmuse:openmuse /app/node_modules ./node_modules
 COPY --from=builder --chown=openmuse:openmuse /app/dist ./dist
 COPY --from=builder --chown=openmuse:openmuse /app/package.json ./package.json
-COPY --from=builder --chown=openmuse:openmuse /app/apps/server/package.json ./apps/server/package.json
-COPY --from=builder --chown=openmuse:openmuse /app/apps/mobile/package.json ./apps/mobile/package.json
-COPY --from=builder --chown=openmuse:openmuse /app/packages ./packages
-COPY --from=builder --chown=openmuse:openmuse /app/apps/mobile/dist/web ./client
 
 USER openmuse
 VOLUME ["/data"]
