@@ -15,14 +15,16 @@ services:
       - HOST=0.0.0.0
       - AGENT_BACKEND=hermes
       - WORKSPACE_MODE=live
+      - OPENMUSE_ACCESS_KEY=${OPENMUSE_ACCESS_KEY}
+      - TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY}
       - HERMES_GATEWAY_URL=http://hermes-core:8642
       - HERMES_PROFILE=default
       - WORKER_URL=http://openmuse-worker:8790
-      - WORKER_TOKEN=${WORKER_TOKEN:-openmuse-worker-secure-token-32chars}
-      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
-      - MINIMAX_BASE_URL=${MINIMAX_BASE_URL:-https://api.minimax.io/v1}
+      - WORKER_TOKEN=${WORKER_TOKEN}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
+      - MINIMAX_BASE_URL=${MINIMAX_BASE_URL}
       - XAI_API_KEY=${XAI_API_KEY:-}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - OPENCOMPUTER_API_KEY=${OPENCOMPUTER_API_KEY:-}
       - OPENCOMPUTER_PROJECT_ID=${OPENCOMPUTER_PROJECT_ID:-}
@@ -44,7 +46,7 @@ services:
     restart: unless-stopped
     environment:
       - WORKER_HOST=0.0.0.0
-      - WORKER_TOKEN=${WORKER_TOKEN:-openmuse-worker-secure-token-32chars}
+      - WORKER_TOKEN=${WORKER_TOKEN}
       - WORKER_DATA_DIR=/data
     volumes:
       - worker_data:/data
@@ -79,11 +81,11 @@ services:
       - HOME=/home/hermes
       - HERMES_DASHBOARD_BASIC_AUTH_USERNAME=${HERMES_DASHBOARD_BASIC_AUTH_USERNAME:-admin}
       - HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD:-hermes-admin-2026}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
     volumes:
       - hermes_home:/home/hermes/.hermes
@@ -111,9 +113,9 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production-long-random-string}
-      - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD:-hermes-admin-2026}
-      - ADMIN_DEFAULT_EMAIL=${ADMIN_DEFAULT_EMAIL:-admin@example.com}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD}
+      - ADMIN_DEFAULT_EMAIL=${ADMIN_DEFAULT_EMAIL}
       - ENVIRONMENT=production
     networks:
       - hermes-net
@@ -126,7 +128,7 @@ services:
     container_name: hermes-voice-gateway
     restart: unless-stopped
     environment:
-      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
       - MINIMAX_GROUP_ID=${MINIMAX_GROUP_ID:-}
       - PORT=8202
     networks:
@@ -142,7 +144,7 @@ services:
     environment:
       - POSTGRES_DB=hermes_enterprise
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-hermes-db-secret}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
