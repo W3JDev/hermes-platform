@@ -35,6 +35,13 @@ async def lifespan(app: FastAPI):
     # Startup
     await init_db()
 
+    # Run database migrations (advisory-locked, safe for multi-instance)
+    try:
+        from src.db.migrations.runner import run_migrations_with_advisory_lock
+        await run_migrations_with_advisory_lock()
+    except Exception as e:
+        print(f"[WARN] DB migrations: {e}")
+
     # Bootstrap default admin on first run
     try:
         from src.db.session import async_session_factory
