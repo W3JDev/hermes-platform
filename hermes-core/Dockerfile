@@ -11,15 +11,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv for rapid, rock-solid dependency resolution
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
 WORKDIR /opt/hermes-agent
 
-# Vendored requirements (upstream clone has no requirements.txt at root)
-COPY requirements.txt /tmp/hermes-requirements.txt
-
-# Clone latest official Hermes Agent from Nous Research
+# Clone latest official Hermes Agent from Nous Research and install dependencies
 RUN git clone --depth 1 https://github.com/nousresearch/hermes-agent.git /opt/hermes-agent \
-    && pip install --no-cache-dir --upgrade pip uv setuptools wheel \
-    && pip install --no-cache-dir -e . -r /tmp/hermes-requirements.txt ruamel.yaml
+    && python3 -c 'p = "/opt/hermes-agent/pyproject.toml"; c = open(p).read().replace("python_version >= \x273.14\x27", "python_version >= \x273.11\x27"); open(p, "w").write(c)' \
+    && uv pip install --system -e ".[all]"
 
 # Setup non-root hermes user for secure execution
 RUN useradd -m -u 1000 -s /bin/bash hermes \
@@ -39,6 +39,6 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8642 9119
 
 HEALTHCHECK --interval=20s --timeout=5s --retries=5 --start-period=30s \
-  CMD curl -f http://127.0.0.1:8642/health || exit 1
+  CMD curl -f http://127.0.0.1:8642/api/health || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

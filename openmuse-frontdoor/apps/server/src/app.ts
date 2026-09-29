@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { MessageSchema } from "@ag-ui/core";
 import { CopilotKitIntelligence } from "@copilotkit/runtime/v2";
 import { Hono } from "hono";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { z } from "zod";
@@ -369,8 +370,10 @@ export async function createApp(
     );
     return new Response(body, { status: response.status, headers: response.headers });
   });
-  app.get("/", (c) =>
-    c.json({ name: "OpenMuse", app: "http://localhost:8081", health: "/api/health" }),
+  app.get("/api/info", (c) =>
+    c.json({ name: "OpenMuse", health: "/api/health" }),
   );
+  app.use("/*", serveStatic({ root: "./client" }));
+  app.get("*", serveStatic({ path: "./client/index.html" }));
   return { app, auth, files, actions, workspace, agent, computer };
 }

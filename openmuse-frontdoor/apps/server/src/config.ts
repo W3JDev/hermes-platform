@@ -116,7 +116,7 @@ export function readConfig(): Config {
     throw new Error(
       "Live mode requires OPENMUSE_ACCESS_KEY (24+ characters) and TOKEN_ENCRYPTION_KEY (32-byte base64)",
     );
-  if (mode === "sample" && !["127.0.0.1", "localhost", "::1"].includes(config.host))
-    throw new Error("Sample workspace is local-only. HOST must be a loopback address.");
+  if (mode === "sample" && !["127.0.0.1", "localhost", "::1", "0.0.0.0"].includes(config.host))
+    throw new Error("Sample workspace is local-only. HOST must be a loopback address or 0.0.0.0 in containers.");
   return config;
 }

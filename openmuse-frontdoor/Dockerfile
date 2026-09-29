@@ -36,6 +36,9 @@ RUN groupadd --system --gid 1001 openmuse \
 COPY --from=builder --chown=openmuse:openmuse /app/node_modules ./node_modules
 COPY --from=builder --chown=openmuse:openmuse /app/dist ./dist
 COPY --from=builder --chown=openmuse:openmuse /app/package.json ./package.json
+COPY --from=builder --chown=openmuse:openmuse /app/apps/mobile/package.json ./apps/mobile/package.json
+COPY --from=builder --chown=openmuse:openmuse /app/packages ./packages
+COPY --from=builder --chown=openmuse:openmuse /app/apps/mobile/dist/web ./client
 
 USER openmuse
 VOLUME ["/data"]
