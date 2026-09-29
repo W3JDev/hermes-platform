@@ -16,7 +16,7 @@ WORKDIR /opt/hermes-agent
 # Clone latest official Hermes Agent from Nous Research
 RUN git clone --depth 1 https://github.com/nousresearch/hermes-agent.git /opt/hermes-agent \
     && pip install --no-cache-dir --upgrade pip uv setuptools wheel \
-    && pip install --no-cache-dir -e .
+    && pip install --no-cache-dir -e . ruamel.yaml
 
 # Setup non-root hermes user for secure execution
 RUN useradd -m -u 1000 -s /bin/bash hermes \
