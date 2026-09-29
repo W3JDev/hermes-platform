@@ -13,10 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /opt/hermes-agent
 
+# Vendored requirements (upstream clone has no requirements.txt at root)
+COPY requirements.txt /tmp/hermes-requirements.txt
+
 # Clone latest official Hermes Agent from Nous Research
 RUN git clone --depth 1 https://github.com/nousresearch/hermes-agent.git /opt/hermes-agent \
     && pip install --no-cache-dir --upgrade pip uv setuptools wheel \
-    && pip install --no-cache-dir -e . -r requirements.txt ruamel.yaml
+    && pip install --no-cache-dir -e . -r /tmp/hermes-requirements.txt ruamel.yaml
 
 # Setup non-root hermes user for secure execution
 RUN useradd -m -u 1000 -s /bin/bash hermes \
