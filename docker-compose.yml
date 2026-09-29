@@ -1,7 +1,56 @@
 version: "3.9"
 
 services:
-  # ── 1. Hermes Web Companion (Browser Desktop App & Reverse Proxy) ───────────
+  # ── 1. OpenMuse Main Frontdoor (Hyper-Proactive Autonomous Agent) ───────────
+  openmuse-frontdoor:
+    build:
+      context: ./openmuse-frontdoor
+      dockerfile: Dockerfile
+    container_name: hermes-openmuse-frontdoor
+    restart: unless-stopped
+    ports:
+      - "${FRONTDOOR_PORT:-8787}:8787"
+    environment:
+      - PORT=8787
+      - HOST=0.0.0.0
+      - AGENT_BACKEND=hermes
+      - HERMES_GATEWAY_URL=http://hermes-core:8642
+      - HERMES_PROFILE=default
+      - WORKER_URL=http://openmuse-worker:8790
+      - WORKER_TOKEN=${WORKER_TOKEN:-openmuse-worker-secure-token-32chars}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - MINIMAX_BASE_URL=${MINIMAX_BASE_URL:-https://api.minimax.io/v1}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENCOMPUTER_API_KEY=${OPENCOMPUTER_API_KEY:-}
+      - OPENCOMPUTER_PROJECT_ID=${OPENCOMPUTER_PROJECT_ID:-}
+      - DATA_DIR=/data
+    volumes:
+      - openmuse_data:/data
+    depends_on:
+      - hermes-core
+      - openmuse-worker
+    networks:
+      - hermes-net
+
+  # ── 2. OpenMuse Browser Worker (Computer Use & Web Exploration) ─────────────
+  openmuse-worker:
+    build:
+      context: ./openmuse-frontdoor/apps/worker
+      dockerfile: Dockerfile
+    container_name: hermes-openmuse-worker
+    restart: unless-stopped
+    environment:
+      - WORKER_HOST=0.0.0.0
+      - WORKER_TOKEN=${WORKER_TOKEN:-openmuse-worker-secure-token-32chars}
+      - WORKER_DATA_DIR=/data
+    volumes:
+      - worker_data:/data
+    networks:
+      - hermes-net
+
+  # ── 3. Hermes Web Companion (Desktop App UI in Browser / PWA) ───────────────
   hermes-companion:
     build:
       context: ./hermes-companion
@@ -9,19 +58,21 @@ services:
     container_name: hermes-companion
     restart: unless-stopped
     ports:
-      - "${PORT:-80}:80"
+      - "${COMPANION_PORT:-8088}:80"
     depends_on:
       - hermes-core
     networks:
       - hermes-net
 
-  # ── 2. Official Hermes Agent Core (Gateway + Dashboard) ────────────────────
+  # ── 4. Official Nous Hermes Agent Core (Gateway + Dashboard) ────────────────
   hermes-core:
     build:
       context: ./hermes-core
       dockerfile: Dockerfile
     container_name: hermes-core
     restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-8642}:8642"
     environment:
       - HOME=/home/hermes
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
@@ -36,13 +87,15 @@ services:
     networks:
       - hermes-net
 
-  # ── 3. Hermes Enterprise GenUI Platform ────────────────────────────────────
+  # ── 5. Hermes Enterprise Platform (GenUI Canvas & Workspace) ────────────────
   hermes-enterprise:
     build:
       context: ./hermes-enterprise
       dockerfile: Dockerfile
     container_name: hermes-enterprise
     restart: unless-stopped
+    ports:
+      - "${ENTERPRISE_PORT:-8001}:8001"
     depends_on:
       postgres-hub:
         condition: service_healthy
@@ -60,7 +113,7 @@ services:
     networks:
       - hermes-net
 
-  # ── 4. Voice Gateway (MiniMax TTS Service) ─────────────────────────────────
+  # ── 6. Voice Gateway (MiniMax TTS & Grok Voice) ─────────────────────────────
   voice-gateway:
     build:
       context: .
@@ -74,11 +127,13 @@ services:
     networks:
       - hermes-net
 
-  # ── 5. PostgreSQL 16 with pgvector ─────────────────────────────────────────
+  # ── 7. PostgreSQL 16 with pgvector ─────────────────────────────────────────
   postgres-hub:
     image: pgvector/pgvector:pg16
     container_name: hermes-postgres
     restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5435}:5432"
     environment:
       - POSTGRES_DB=hermes_enterprise
       - POSTGRES_USER=postgres
@@ -93,11 +148,13 @@ services:
     networks:
       - hermes-net
 
-  # ── 6. Redis State & Cache ─────────────────────────────────────────────────
+  # ── 8. Redis State & Cache ─────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: hermes-redis
     restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6382}:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -114,6 +171,8 @@ networks:
     driver: bridge
 
 volumes:
+  openmuse_data:
+  worker_data:
   hermes_home:
   hermes_data:
   postgres_data:

@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Hermes Muse",
+    "slug": "hermes-muse",
+    "scheme": "hermesmuse",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": { "supportsTablet": true, "bundleIdentifier": "app.hermes.muse" },
+    "android": { "package": "app.hermes.muse" },
+    "web": {
+      "bundler": "metro",
+      "name": "Hermes Muse — Autonomous Personal Agent",
+      "shortName": "Hermes",
+      "backgroundColor": "#09090b",
+      "themeColor": "#09090b",
+      "display": "standalone",
+      "orientation": "portrait"
+    },
+    "plugins": [
+      "expo-document-picker",
+      "@config-plugins/react-native-blob-util",
+      "@config-plugins/react-native-pdf"
+    ]
+  }
+}

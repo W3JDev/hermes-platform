@@ -1,0 +1,13 @@
+.env
+.env.local
+*.log
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+dist/
+build/
+coverage/
+.turbo/
+.openmuse/
