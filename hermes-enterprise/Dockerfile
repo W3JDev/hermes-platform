@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Application code
 COPY src/ ./src/
-COPY alembic.ini .
+COPY src/db/migrations/alembic.ini .
 
 # Create data directories
 RUN mkdir -p /var/hermes/data /var/hermes/skills
