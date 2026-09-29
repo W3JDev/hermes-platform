@@ -84,6 +84,7 @@ services:
     volumes:
       - hermes_home:/home/hermes/.hermes
       - hermes_data:/home/hermes/data
+      - ./hermes-core/agent-config.yaml:/home/hermes/.hermes/config.yaml:ro
     networks:
       - hermes-net
 
