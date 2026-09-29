@@ -14,6 +14,7 @@ services:
       - PORT=8787
       - HOST=0.0.0.0
       - AGENT_BACKEND=hermes
+      - WORKSPACE_MODE=live
       - HERMES_GATEWAY_URL=http://hermes-core:8642
       - HERMES_PROFILE=default
       - WORKER_URL=http://openmuse-worker:8790
