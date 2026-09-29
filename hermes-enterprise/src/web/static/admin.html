@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hermes Admin Console</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+  <nav class="bg-gray-900 border-b border-white/10 px-6 py-4 flex items-center justify-between">
+    <span class="text-xl font-bold">🤖 Hermes Admin</span>
+    <div class="flex gap-4">
+      <button onclick="showTab('users')" class="tab-btn text-sm px-4 py-2 rounded-lg bg-blue-600 text-white">Users</button>
+      <button onclick="showTab('sessions')" class="tab-btn text-sm px-4 py-2 rounded-lg bg-gray-700 text-gray-200 hover:bg-gray-600">Sessions</button>
+      <button onclick="showTab('usage')" class="tab-btn text-sm px-4 py-2 rounded-lg bg-gray-700 text-gray-200 hover:bg-gray-600">Usage</button>
+      <button onclick="logout()" class="text-sm px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-white">Logout</button>
+    </div>
+  </nav>
+
+  <!-- Users Tab -->
+  <div id="tab-users" class="tab-content p-8">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold">Team Members</h2>
+      <button onclick="document.getElementById('addUserModal').classList.remove('hidden')"
+        class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg font-medium">+ Add Member</button>
+    </div>
+    <div id="userAlert" class="hidden mb-4 p-3 rounded-lg"></div>
+    <div class="bg-gray-900 rounded-xl overflow-hidden border border-white/10">
+      <table class="w-full text-sm">
+        <thead><tr class="border-b border-white/10 text-gray-400">
+          <th class="text-left p-4">Username</th><th class="text-left p-4">Email</th>
+          <th class="text-left p-4">Role</th><th class="text-left p-4">Status</th><th class="text-left p-4">Actions</th>
+        </tr></thead>
+        <tbody id="usersTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Sessions Tab -->
+  <div id="tab-sessions" class="tab-content hidden p-8">
+    <h2 class="text-2xl font-bold mb-6">Active Sessions</h2>
+    <div class="bg-gray-900 rounded-xl overflow-hidden border border-white/10">
+      <table class="w-full text-sm">
+        <thead><tr class="border-b border-white/10 text-gray-400">
+          <th class="text-left p-4">User</th><th class="text-left p-4">Channel</th>
+          <th class="text-left p-4">Last Active</th><th class="text-left p-4">Actions</th>
+        </tr></thead>
+        <tbody id="sessionsTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Usage Tab -->
+  <div id="tab-usage" class="tab-content hidden p-8">
+    <h2 class="text-2xl font-bold mb-6">Token Usage & Cost</h2>
+    <div class="bg-gray-900 rounded-xl overflow-hidden border border-white/10">
+      <table class="w-full text-sm">
+        <thead><tr class="border-b border-white/10 text-gray-400">
+          <th class="text-left p-4">User</th><th class="text-left p-4">Model</th>
+          <th class="text-left p-4">Input Tokens</th><th class="text-left p-4">Output Tokens</th><th class="text-left p-4">Cost (USD)</th>
+        </tr></thead>
+        <tbody id="usageTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add User Modal -->
+  <div id="addUserModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div class="bg-gray-900 rounded-2xl p-8 w-full max-w-md border border-white/20 shadow-2xl">
+      <h3 class="text-xl font-bold mb-6">Add Team Member</h3>
+      <form id="addUserForm" class="space-y-4">
+        <input id="newUsername" type="text" required placeholder="Username"
+          class="w-full bg-gray-800 border border-white/10 text-white rounded-lg px-4 py-3"/>
+        <input id="newEmail" type="email" required placeholder="Email"
+          class="w-full bg-gray-800 border border-white/10 text-white rounded-lg px-4 py-3"/>
+        <input id="newPassword" type="text" required placeholder="Temporary Password"
+          class="w-full bg-gray-800 border border-white/10 text-white rounded-lg px-4 py-3"/>
+        <select id="newRole" class="w-full bg-gray-800 border border-white/10 text-white rounded-lg px-4 py-3">
+          <option value="member">Member</option>
+          <option value="admin">Admin</option>
+        </select>
+        <div id="newUserResult" class="hidden p-3 rounded-lg text-sm bg-green-600/20 border border-green-500 text-green-200"></div>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-medium">Create</button>
+          <button type="button" onclick="document.getElementById('addUserModal').classList.add('hidden')"
+            class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-medium">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API = '';
+    const token = () => localStorage.getItem('hermes_token');
+    const authH = () => ({ 'Authorization': `Bearer ${token()}`, 'Content-Type': 'application/json' });
+
+    // Guard: must be admin
+    (async () => {
+      const t = token();
+      if (!t) { window.location.href = '/static/index.html'; return; }
+      try {
+        const p = JSON.parse(atob(t.split('.')[1]));
+        if (p.exp * 1000 < Date.now() || p.role !== 'admin') { window.location.href = '/static/index.html'; }
+      } catch(_) { window.location.href = '/static/index.html'; }
+    })();
+
+    function showTab(name) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`tab-${name}`).classList.remove('hidden');
+      if (name === 'users') loadUsers();
+      if (name === 'sessions') loadSessions();
+      if (name === 'usage') loadUsage();
+    }
+
+    async function loadUsers() {
+      const res = await fetch(`${API}/admin/users`, { headers: authH() });
+      const users = await res.json();
+      document.getElementById('usersTable').innerHTML = users.map(u => `
+        <tr class="border-b border-white/5 hover:bg-white/5">
+          <td class="p-4 font-medium">${u.username}</td>
+          <td class="p-4 text-gray-400">${u.email}</td>
+          <td class="p-4"><span class="px-2 py-1 rounded-full text-xs ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'}">${u.role}</span></td>
+          <td class="p-4"><span class="px-2 py-1 rounded-full text-xs ${u.is_active ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+          <td class="p-4">
+            <button onclick="genInvite('${u.user_id}')" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg">🔗 Invite Link</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    async function genInvite(userId) {
+      const res = await fetch(`${API}/admin/users/${userId}/invite`, { method: 'POST', headers: authH() });
+      const d = await res.json();
+      const al = document.getElementById('userAlert');
+      al.className = 'mb-4 p-3 rounded-lg bg-blue-500/20 border border-blue-500 text-blue-200 text-sm break-all';
+      al.textContent = `Invite URL: ${d.invite_url}`;
+      al.classList.remove('hidden');
+    }
+
+    async function loadSessions() {
+      const res = await fetch(`${API}/admin/sessions`, { headers: authH() });
+      const sessions = await res.json();
+      document.getElementById('sessionsTable').innerHTML = sessions.map(s => `
+        <tr class="border-b border-white/5 hover:bg-white/5">
+          <td class="p-4 font-medium">${s.username}</td>
+          <td class="p-4 text-gray-400">${s.channel}</td>
+          <td class="p-4 text-gray-400 text-xs">${s.last_seen_at ? new Date(s.last_seen_at).toLocaleString() : 'N/A'}</td>
+          <td class="p-4"><button onclick="revokeSession('${s.session_id}')" class="text-xs bg-red-700 hover:bg-red-600 px-3 py-1.5 rounded-lg">Revoke</button></td>
+        </tr>`).join('');
+    }
+
+    async function revokeSession(id) {
+      await fetch(`${API}/admin/sessions/${id}`, { method: 'DELETE', headers: authH() });
+      loadSessions();
+    }
+
+    async function loadUsage() {
+      const res = await fetch(`${API}/admin/usage`, { headers: authH() });
+      const stats = await res.json();
+      document.getElementById('usageTable').innerHTML = stats.length ? stats.map(s => `
+        <tr class="border-b border-white/5 hover:bg-white/5">
+          <td class="p-4 font-medium">${s.username}</td>
+          <td class="p-4 text-gray-400">${s.model_provider} / ${s.model_name}</td>
+          <td class="p-4">${s.total_input_tokens.toLocaleString()}</td>
+          <td class="p-4">${s.total_output_tokens.toLocaleString()}</td>
+          <td class="p-4 text-green-400">$${s.total_cost_usd.toFixed(4)}</td>
+        </tr>`).join('') :
+        '<tr><td colspan="5" class="p-8 text-center text-gray-500">No usage data yet</td></tr>';
+    }
+
+    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = { username: document.getElementById('newUsername').value, email: document.getElementById('newEmail').value, password: document.getElementById('newPassword').value, role: document.getElementById('newRole').value };
+      const res = await fetch(`${API}/admin/users`, { method: 'POST', headers: authH(), body: JSON.stringify(body) });
+      const d = await res.json();
+      if (res.ok) {
+        document.getElementById('newUserResult').textContent = `✅ Created: ${d.username} — share their credentials and the login URL: ${window.location.origin}/static/index.html`;
+        document.getElementById('newUserResult').classList.remove('hidden');
+        loadUsers();
+      }
+    });
+
+    function logout() { localStorage.removeItem('hermes_token'); window.location.href = '/static/index.html'; }
+    showTab('users');
+  </script>
+</body>
+</html>

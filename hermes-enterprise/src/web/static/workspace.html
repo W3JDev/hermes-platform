@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hermes Enterprise Workspace</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Marked for Markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Highlight.js for Code Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <!-- Chart.js for Generative UI Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Mermaid.js for Architecture & Flowcharts -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+  </script>
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    .prose pre { background: #090d16; border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; padding: 1rem; position: relative; }
+    .prose code { color: #38bdf8; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .prose table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.875rem; }
+    .prose th, .prose td { border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem 0.75rem; text-align: left; }
+    .prose th { background: rgba(255,255,255,0.05); color: #93c5fd; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden font-sans">
+
+  <!-- Top Navigation -->
+  <header class="bg-slate-900/90 backdrop-blur border-b border-white/10 px-5 py-2.5 flex items-center justify-between flex-shrink-0 z-20">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-black text-white shadow-lg shadow-blue-500/20">
+        H
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-base tracking-tight text-white">Hermes Enterprise</span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">GenUI 2.0</span>
+        </div>
+        <span id="userLabel" class="text-xs text-slate-400">Loading profile...</span>
+      </div>
+    </div>
+
+    <!-- Center Model & Workflow Selector -->
+    <div class="flex items-center gap-2 bg-slate-950/60 p-1 rounded-xl border border-white/10">
+      <span class="text-xs text-slate-400 pl-2">Engine:</span>
+      <select id="modelSelect" class="bg-slate-900 text-white text-xs font-medium rounded-lg px-2.5 py-1.5 border border-white/10 focus:outline-none focus:ring-1 focus:ring-blue-500">
+        <optgroup label="Preset Workflows">
+          <option value="gemini-2.5-flash" selected>⚡ Gemini 2.5 Flash (Balanced Multimodal)</option>
+          <option value="gemini-2.5-pro">🔮 Gemini 2.5 Pro (Deep Reasoning)</option>
+          <option value="groq/qwen3.8-27b">🚀 Groq Fast (Sub-second Speed)</option>
+          <option value="claude/claude-sonnet-4-6">🧠 Claude Sonnet 4.6 (Coding Agent)</option>
+          <option value="nous-hermes-3">🦙 Nous Hermes 3 (Self-Hosted)</option>
+          <option value="qwen3.5:2b">🔒 Ollama Local (100% Offline)</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <!-- Actions & Drawers -->
+    <div class="flex items-center gap-2">
+      <!-- Memory Hub Drawer Toggle -->
+      <button onclick="toggleDrawer('memoryDrawer')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium border border-white/10 text-slate-200 transition">
+        <span>🧠</span> Memory Hub
+      </button>
+
+      <!-- Composio Integrations Drawer Toggle -->
+      <button onclick="toggleDrawer('integrationsDrawer')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium border border-white/10 text-slate-200 transition">
+        <span>🔌</span> Tools & OAuth
+      </button>
+
+      <!-- Auto-TTS Toggle -->
+      <button id="ttsToggleBtn" onclick="toggleAutoTTS()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-white/10 transition" title="Auto Speech Output">
+        <span id="ttsIcon">🔇</span>
+      </button>
+
+      <!-- Admin link if applicable -->
+      <a id="adminBtn" href="/static/admin.html" class="hidden px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition">
+        Admin
+      </a>
+
+      <!-- Logout -->
+      <button onclick="logout()" class="px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-medium transition">
+        Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Chat Container -->
+  <main class="flex-1 flex overflow-hidden relative">
+
+    <!-- Messages Column -->
+    <section class="flex-1 flex flex-col h-full overflow-hidden">
+      <div id="messages" class="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6"></div>
+
+      <!-- Input Footer -->
+      <div class="bg-slate-900/90 backdrop-blur border-t border-white/10 p-4 flex-shrink-0">
+        <div class="max-w-4xl mx-auto space-y-2">
+          
+          <!-- Attachment Preview Bar -->
+          <div id="attachmentPreview" class="hidden flex items-center gap-2 p-2 bg-slate-800/80 rounded-lg border border-white/10 text-xs">
+            <span class="text-blue-400">📎 Attached:</span>
+            <span id="attachmentName" class="text-slate-200 font-mono truncate max-w-xs"></span>
+            <button onclick="clearAttachment()" class="text-rose-400 hover:text-rose-300 ml-auto px-1.5">✕</button>
+          </div>
+
+          <!-- Input Bar -->
+          <div class="flex items-end gap-2">
+            <!-- Attach file/image button -->
+            <input type="file" id="fileInput" class="hidden" accept="image/*,audio/*,.pdf,.txt,.json,.py,.ts,.md" onchange="handleFileSelected(event)">
+            <button onclick="document.getElementById('fileInput').click()" class="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-white/10 transition" title="Attach image or file">
+              📎
+            </button>
+
+            <!-- Real-Time Voice Recording Button -->
+            <button id="micBtn" onclick="toggleVoiceRecord()" class="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-white/10 transition flex items-center justify-center relative" title="Click to Speak (Groq Whisper STT)">
+              <span id="micIcon">🎤</span>
+              <span id="micPing" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+            </button>
+
+            <!-- Text Area -->
+            <div class="flex-1 relative">
+              <textarea id="msgInput" rows="1" placeholder="Ask Hermes, generate charts, run code, manage Google Workspace..."
+                class="w-full bg-slate-950 border border-white/15 text-white placeholder-slate-500 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm leading-relaxed"
+                style="min-height:48px;max-height:180px"
+                oninput="autoExpand(this)"
+                onkeydown="handleKeyDown(event)"></textarea>
+            </div>
+
+            <!-- Send Button -->
+            <button id="sendBtn" onclick="sendMsg()" class="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white px-5 py-3 rounded-xl font-medium text-sm transition shadow-lg shadow-blue-600/20 flex-shrink-0">
+              Send →
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] text-slate-500 px-1">
+            <span>Shift + Enter for new lines · Markdown, Charts & Diagrams supported</span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Memory & Continuous Learning Active
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide-Out Drawer: Memory Hub -->
+    <aside id="memoryDrawer" class="hidden w-96 bg-slate-900 border-l border-white/10 flex flex-col h-full z-30 transition-all shadow-2xl">
+      <div class="p-4 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-base font-bold text-white">🧠 Memory Hub</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">pgvector HNSW</span>
+        </div>
+        <button onclick="toggleDrawer('memoryDrawer')" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+      
+      <div class="p-4 border-b border-white/10 space-y-3">
+        <p class="text-xs text-slate-400">Hermes continuously consolidates user facts, workspace details, and preferences into PostgreSQL pgvector.</p>
+        <div class="flex gap-2">
+          <input id="manualMemoryInput" type="text" placeholder="Add fact (e.g., 'Primary cloud is GCP')" class="flex-1 bg-slate-950 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+          <button onclick="addManualMemory()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium">Add</button>
+        </div>
+      </div>
+
+      <div id="memoryList" class="flex-1 overflow-y-auto p-4 space-y-2.5 text-xs">
+        <div class="text-slate-500 text-center py-6">Loading memories...</div>
+      </div>
+    </aside>
+
+    <!-- Slide-Out Drawer: Composio Integrations -->
+    <aside id="integrationsDrawer" class="hidden w-96 bg-slate-900 border-l border-white/10 flex flex-col h-full z-30 transition-all shadow-2xl">
+      <div class="p-4 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-base font-bold text-white">🔌 Tools & OAuth</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">Composio</span>
+        </div>
+        <button onclick="toggleDrawer('integrationsDrawer')" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="p-4 border-b border-white/10">
+        <p class="text-xs text-slate-400">1-click connect your external productivity tools to enable Hermes to manage emails, calendars, documents, and code repositories.</p>
+      </div>
+
+      <div id="integrationsList" class="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
+        <div class="text-slate-500 text-center py-6">Loading integrations...</div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Script Logic -->
+  <script>
+    const API = '';
+    const token = () => localStorage.getItem('hermes_token');
+
+    let currentUser = null;
+    let autoTTS = false;
+    let attachedFile = null; // { name, type, base64 }
+
+    // Authentication Guard
+    (() => {
+      const t = token();
+      if (!t) { window.location.href = '/static/index.html'; return; }
+      try {
+        const payload = JSON.parse(atob(t.split('.')[1]));
+        if (payload.exp * 1000 < Date.now()) { window.location.href = '/static/index.html'; return; }
+        currentUser = payload;
+        document.getElementById('userLabel').textContent = `@${payload.username} (${payload.role})`;
+        if (payload.role === 'admin') {
+          document.getElementById('adminBtn').classList.remove('hidden');
+        }
+      } catch(_) {
+        window.location.href = '/static/index.html';
+      }
+    })();
+
+    // Auto expand textarea
+    function autoExpand(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 180) + 'px';
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMsg();
+      }
+    }
+
+    // Toggle slide-out drawers
+    function toggleDrawer(id) {
+      const el = document.getElementById(id);
+      const isHidden = el.classList.contains('hidden');
+      document.getElementById('memoryDrawer').classList.add('hidden');
+      document.getElementById('integrationsDrawer').classList.add('hidden');
+      if (isHidden) {
+        el.classList.remove('hidden');
+        if (id === 'memoryDrawer') loadMemories();
+        if (id === 'integrationsDrawer') loadIntegrations();
+      }
+    }
+
+    function toggleAutoTTS() {
+      autoTTS = !autoTTS;
+      document.getElementById('ttsIcon').textContent = autoTTS ? '🔊' : '🔇';
+      document.getElementById('ttsToggleBtn').classList.toggle('bg-blue-600', autoTTS);
+      document.getElementById('ttsToggleBtn').classList.toggle('text-white', autoTTS);
+    }
+
+    // File / Image Attachment handling
+    function handleFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const b64 = e.target.result.split(',')[1];
+        attachedFile = { name: file.name, type: file.type, base64: b64 };
+        document.getElementById('attachmentName').textContent = file.name;
+        document.getElementById('attachmentPreview').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearAttachment() {
+      attachedFile = null;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('attachmentPreview').classList.add('hidden');
+    }
+
+    // Speech-to-Text Recording (Groq Whisper)
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+
+    async function toggleVoiceRecord() {
+      if (isRecording) {
+        stopVoiceRecord();
+      } else {
+        startVoiceRecord();
+      }
+    }
+
+    async function startVoiceRecord() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          stream.getTracks().forEach(t => t.stop());
+          transcribeAudioBlob(audioBlob);
+        };
+        mediaRecorder.start();
+        isRecording = true;
+        document.getElementById('micIcon').textContent = '⏹️';
+        document.getElementById('micPing').classList.remove('hidden');
+        document.getElementById('micBtn').classList.add('bg-red-900/60', 'border-red-500/50');
+      } catch (err) {
+        alert('Could not access microphone: ' + err.message);
+      }
+    }
+
+    function stopVoiceRecord() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        document.getElementById('micIcon').textContent = '🎤';
+        document.getElementById('micPing').classList.add('hidden');
+        document.getElementById('micBtn').classList.remove('bg-red-900/60', 'border-red-500/50');
+      }
+    }
+
+    async function transcribeAudioBlob(blob) {
+      const input = document.getElementById('msgInput');
+      input.placeholder = 'Transcribing voice via Groq Whisper...';
+      try {
+        const res = await fetch(`${API}/audio/transcribe`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token()}`,
+            'Content-Type': 'audio/webm',
+          },
+          body: blob,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.text) {
+            input.value = (input.value ? input.value + ' ' : '') + data.text;
+            autoExpand(input);
+          }
+        }
+      } catch (err) {
+        console.error('Transcription error:', err);
+      } finally {
+        input.placeholder = 'Ask Hermes, generate charts, run code, manage Google Workspace...';
+      }
+    }
+
+    // Speech Output (TTS)
+    async function playTTS(text) {
+      if (!text) return;
+      try {
+        const res = await fetch(`${API}/audio/speak`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token()}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text.slice(0, 500) }),
+        });
+        if (res.ok) {
+          const audioBlob = await res.blob();
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+          audio.play();
+          return;
+        }
+      } catch(_) {}
+
+      // Fallback: Browser Web Speech API
+      if ('speechSynthesis' in window) {
+        const utter = new SpeechSynthesisUtterance(text.slice(0, 500));
+        window.speechSynthesis.speak(utter);
+      }
+    }
+
+    // Messages State
+    const messages = [];
+
+    // Message Renderer with GenUI Artifacts
+    function addMessage(role, content) {
+      messages.push({ role, content });
+      const container = document.getElementById('messages');
+
+      const wrapper = document.createElement('div');
+      wrapper.className = `flex gap-3 ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+      if (role === 'assistant') {
+        const avatar = document.createElement('div');
+        avatar.className = 'w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white text-xs flex-shrink-0 shadow-md';
+        avatar.textContent = 'H';
+        wrapper.appendChild(avatar);
+      }
+
+      const bubbleWrapper = document.createElement('div');
+      bubbleWrapper.className = `flex flex-col gap-1 max-w-3xl ${role === 'user' ? 'items-end' : 'items-start'}`;
+
+      const bubble = document.createElement('div');
+      bubble.className = `px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+        role === 'user'
+          ? 'bg-blue-600 text-white rounded-br-sm shadow-md'
+          : 'bg-slate-900 text-slate-100 rounded-bl-sm border border-white/10 shadow-lg'
+      }`;
+
+      if (role === 'user') {
+        bubble.textContent = content;
+      } else {
+        bubble.innerHTML = renderGenUI(content);
+      }
+
+      bubbleWrapper.appendChild(bubble);
+
+      // Assistant Audio TTS button
+      if (role === 'assistant') {
+        const actions = document.createElement('div');
+        actions.className = 'flex items-center gap-2 px-1 text-[11px] text-slate-500';
+        actions.innerHTML = `
+          <button onclick="playTTS(this.closest('.max-w-3xl').querySelector('.prose, div').innerText)" class="hover:text-slate-300 flex items-center gap-1">
+            <span>🔊</span> Listen
+          </button>
+        `;
+        bubbleWrapper.appendChild(actions);
+      }
+
+      wrapper.appendChild(bubbleWrapper);
+      container.appendChild(wrapper);
+      container.scrollTop = container.scrollHeight;
+      return bubble;
+    }
+
+    // Generative UI Renderer (Markdown, Charts, Mermaid Diagrams, Code, HTML Sandbox)
+    function renderGenUI(rawText) {
+      if (!rawText) return '<span class="animate-pulse">Thinking...</span>';
+
+      // Parse markdown first
+      let html = marked.parse(rawText);
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+
+      // Find code blocks to enhance into GenUI artifacts
+      const codeBlocks = temp.querySelectorAll('pre code');
+      codeBlocks.forEach((codeEl, idx) => {
+        const className = codeEl.className || '';
+        const lang = className.replace('language-', '').trim();
+        const codeText = codeEl.textContent.trim();
+
+        // 1. Chart.js Generative Chart
+        if (lang === 'chart' || (lang === 'json' && codeText.includes('"type"') && codeText.includes('"data"'))) {
+          try {
+            const chartConfig = JSON.parse(codeText);
+            const chartId = 'chart_' + Math.random().toString(36).substring(2, 9);
+            const chartContainer = document.createElement('div');
+            chartContainer.className = 'my-4 p-4 bg-slate-950 rounded-xl border border-white/10 shadow-lg';
+            chartContainer.innerHTML = `
+              <div class="flex items-center justify-between mb-2 text-xs font-semibold text-slate-400">
+                <span>📊 Interactive Chart</span>
+                <span class="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded">${chartConfig.type || 'chart'}</span>
+              </div>
+              <div style="height: 260px; position: relative;">
+                <canvas id="${chartId}"></canvas>
+              </div>
+            `;
+            codeEl.closest('pre').replaceWith(chartContainer);
+            setTimeout(() => {
+              const ctx = document.getElementById(chartId);
+              if (ctx) new Chart(ctx, chartConfig);
+            }, 100);
+            return;
+          } catch (_) {}
+        }
+
+        // 2. Mermaid Diagram
+        if (lang === 'mermaid') {
+          const mId = 'mermaid_' + Math.random().toString(36).substring(2, 9);
+          const mDiv = document.createElement('div');
+          mDiv.className = 'my-4 p-4 bg-slate-950 rounded-xl border border-white/10 flex justify-center';
+          mDiv.innerHTML = `<div id="${mId}" class="mermaid">${codeText}</div>`;
+          codeEl.closest('pre').replaceWith(mDiv);
+          setTimeout(() => {
+            try { mermaid.run(); } catch(e) { console.error('Mermaid render error:', e); }
+          }, 100);
+          return;
+        }
+
+        // 3. Sandboxed Live HTML / SVG Widgets
+        if (lang === 'html' || lang === 'svg') {
+          const widgetId = 'widget_' + Math.random().toString(36).substring(2, 9);
+          const widgetContainer = document.createElement('div');
+          widgetContainer.className = 'my-4 p-4 bg-slate-950 rounded-xl border border-white/10 shadow-lg';
+          
+          const iframe = document.createElement('iframe');
+          iframe.setAttribute('sandbox', 'allow-scripts');
+          iframe.style.width = '100%';
+          iframe.style.border = 'none';
+          iframe.className = 'rounded-lg bg-slate-900';
+
+          if (lang === 'svg') {
+            iframe.style.height = '260px';
+            iframe.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:12px;display:flex;justify-content:center;align-items:center;background:#0f172a;height:100vh;box-sizing:border-box;overflow:auto;}svg{max-width:100%;max-height:100%;}</style></head><body>${codeText}</body></html>`;
+            widgetContainer.innerHTML = `
+              <div class="flex items-center justify-between mb-2 text-xs font-semibold text-slate-400">
+                <span>🎨 Rendered SVG Graphic</span>
+                <span class="text-[10px] px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded font-mono">Sandboxed SVG</span>
+              </div>
+            `;
+            widgetContainer.appendChild(iframe);
+          } else {
+            iframe.style.height = '320px';
+            iframe.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:12px;font-family:ui-sans-serif,system-ui,sans-serif;color:#e2e8f0;background:#0f172a;}</style></head><body>${codeText}</body></html>`;
+            widgetContainer.innerHTML = `
+              <div class="flex items-center justify-between mb-2 text-xs font-semibold text-slate-400">
+                <span>⚡ Interactive Web Widget</span>
+                <span class="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded font-mono">Sandboxed HTML</span>
+              </div>
+            `;
+            widgetContainer.appendChild(iframe);
+          }
+          codeEl.closest('pre').replaceWith(widgetContainer);
+          return;
+        }
+
+        // 4. Highlight standard code with Copy button
+        hljs.highlightElement(codeEl);
+        const pre = codeEl.closest('pre');
+        if (pre) {
+          const header = document.createElement('div');
+          header.className = 'flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-white/5 mb-2 font-mono';
+          header.innerHTML = `
+            <span>${lang || 'code'}</span>
+            <button onclick="navigator.clipboard.writeText(this.closest('pre').querySelector('code').innerText); this.innerText='Copied!';" class="hover:text-white px-2 py-0.5 bg-slate-800 rounded border border-white/10">Copy</button>
+          `;
+          pre.prepend(header);
+        }
+      });
+
+      return `<div class="prose prose-invert max-w-none text-sm leading-relaxed">${temp.innerHTML}</div>`;
+    }
+
+    // Action Streaming Cards Manager
+    function handleActionEvent(container, eventType, data) {
+      if (!container) return;
+      const cardId = data.action_id || 'act_' + (data.action_type || 'tool');
+      let card = container.querySelector(`[data-action-id="${cardId}"]`);
+
+      if (!card) {
+        card = document.createElement('div');
+        card.dataset.actionId = cardId;
+        card.className = 'p-3 bg-slate-900/90 rounded-xl border border-white/10 shadow-md text-xs space-y-2 transition-all';
+        container.appendChild(card);
+      }
+
+      const actionType = data.action_type || 'tool';
+      const isComplete = eventType === 'action_complete' || data.status === 'completed';
+
+      let title = '⚙️ Agent Action';
+      let bodyHtml = '';
+
+      if (actionType === 'browser_use' || actionType === 'browser') {
+        title = '🌐 Browser Viewport';
+        bodyHtml = `
+          <div class="flex items-center justify-between text-slate-400 font-mono text-[11px] pb-1 border-b border-white/5">
+            <span class="truncate max-w-xs">${data.url || 'Navigating web...'}</span>
+            <span class="px-1.5 py-0.5 rounded ${isComplete ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}">${isComplete ? 'Done' : 'Active'}</span>
+          </div>
+          <div class="p-2 bg-black/60 rounded border border-white/5 text-slate-300">
+            ${data.step ? `<p class="text-blue-300 font-semibold mb-1">Step: ${data.step}</p>` : ''}
+            <p class="text-[11px] text-slate-400">${data.title || data.text || 'Simultaneous browsing in progress...'}</p>
+          </div>
+        `;
+      } else if (actionType === 'terminal' || actionType === 'powershell' || actionType === 'bash' || actionType === 'command') {
+        title = `💻 Terminal: ${data.command || 'Execution'}`;
+        bodyHtml = `
+          <div class="flex items-center justify-between text-slate-400 font-mono text-[11px] pb-1 border-b border-white/5">
+            <span class="truncate max-w-xs font-semibold text-amber-300">${data.command || 'Subprocess'}</span>
+            <span class="px-1.5 py-0.5 rounded ${isComplete ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}">${isComplete ? 'Exited (0)' : 'Running'}</span>
+          </div>
+          <pre class="bg-black/90 text-emerald-400 font-mono text-[11px] p-2.5 rounded border border-white/5 max-h-40 overflow-y-auto whitespace-pre-wrap">${data.output || data.stdout || 'Executing...'}</pre>
+        `;
+      } else if (actionType === 'diff' || actionType === 'file_edit') {
+        title = `📝 Document Diff: ${data.file || data.filename || 'File modification'}`;
+        bodyHtml = `
+          <div class="flex items-center justify-between text-slate-400 font-mono text-[11px] pb-1 border-b border-white/5">
+            <span class="text-indigo-300">${data.file || data.path || 'Updated artifact'}</span>
+            <span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">Modified</span>
+          </div>
+          <pre class="bg-black/90 font-mono text-[11px] p-2 rounded border border-white/5 max-h-40 overflow-y-auto whitespace-pre-wrap"><span class="text-rose-400">${data.deletions || '- Existing lines removed'}</span>\n<span class="text-emerald-400">${data.additions || '+ New lines inserted'}</span></pre>
+        `;
+      } else {
+        title = `⚡ Tool Execution: ${data.tool_name || 'Action'}`;
+        bodyHtml = `<div class="p-2 bg-slate-950 rounded font-mono text-[11px] text-slate-300">${data.detail || JSON.stringify(data)}</div>`;
+      }
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between text-xs font-semibold text-slate-200">
+          <span>${title}</span>
+          ${isComplete ? '<span class="text-emerald-400 font-bold">✓</span>' : '<span class="animate-pulse text-blue-400">●</span>'}
+        </div>
+        ${bodyHtml}
+      `;
+    }
+
+    // Send Message Handler
+    async function sendMsg() {
+      const input = document.getElementById('msgInput');
+      const text = input.value.trim();
+      if (!text && !attachedFile) return;
+
+      input.value = '';
+      input.style.height = '48px';
+
+      const payloadMsg = text || '[File Attachment Sent]';
+      addMessage('user', payloadMsg);
+
+      const model = document.getElementById('modelSelect').value;
+      const bubble = addMessage('assistant', '');
+
+      // Action streaming container directly preceding assistant reply
+      const actionStreamContainer = document.createElement('div');
+      actionStreamContainer.className = 'action-stream-cards space-y-2 mb-3 hidden';
+      bubble.before(actionStreamContainer);
+
+      const requestPayload = {
+        messages,
+        model,
+        audio_base64: (attachedFile && attachedFile.type.startsWith('audio/')) ? attachedFile.base64 : null,
+      };
+
+      clearAttachment();
+
+      try {
+        const res = await fetch(`${API}/agent/chat`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token()}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestPayload),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          bubble.innerHTML = `<span class="text-rose-400 font-semibold">Error:</span> ${err.detail || 'Failed to communicate'}`;
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let full = '';
+        let currentEvent = 'message';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value);
+
+          chunk.split('\n').forEach(line => {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.slice(7).trim();
+            } else if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6).trim();
+              if (dataStr === '[DONE]') return;
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (currentEvent.startsWith('action_') || parsed.action_type) {
+                  actionStreamContainer.classList.remove('hidden');
+                  handleActionEvent(actionStreamContainer, currentEvent, parsed);
+                } else {
+                  if (parsed.delta) full += parsed.delta;
+                  if (parsed.error) full += `\n\n**Error:** ${parsed.error}`;
+                  bubble.innerHTML = renderGenUI(full);
+                }
+              } catch (_) {}
+              currentEvent = 'message';
+            }
+          });
+
+          document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        }
+
+        // Auto TTS if enabled
+        if (autoTTS && full) {
+          playTTS(full);
+        }
+
+      } catch (err) {
+        bubble.innerHTML = `<span class="text-rose-400 font-semibold">Connection Error:</span> ${err.message}`;
+      }
+    }
+
+    // Memory Hub Data Loader
+    async function loadMemories() {
+      const listEl = document.getElementById('memoryList');
+      listEl.innerHTML = '<div class="text-slate-500 text-center py-6">Loading memories...</div>';
+      try {
+        const res = await fetch(`${API}/memory/list`, {
+          headers: { 'Authorization': `Bearer ${token()}` },
+        });
+        if (!res.ok) throw new Error('Failed to load');
+        const items = await res.json();
+        if (items.length === 0) {
+          listEl.innerHTML = '<div class="text-slate-500 text-center py-6">No memories yet. Hermes automatically learns from your conversations.</div>';
+          return;
+        }
+        listEl.innerHTML = items.map(m => `
+          <div class="p-3 bg-slate-950 rounded-lg border border-white/10 space-y-1">
+            <p class="text-slate-200 leading-snug">${m.content}</p>
+            <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+              <span class="px-1.5 py-0.5 rounded bg-slate-800">${m.scope}</span>
+              <span>${m.created_at ? new Date(m.created_at).toLocaleDateString() : 'recent'}</span>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        listEl.innerHTML = `<div class="text-rose-400 text-center py-4">Error: ${err.message}</div>`;
+      }
+    }
+
+    async function addManualMemory() {
+      const input = document.getElementById('manualMemoryInput');
+      const text = input.value.trim();
+      if (!text) return;
+      try {
+        const res = await fetch(`${API}/memory/add`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token()}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: text, scope: 'user' }),
+        });
+        if (res.ok) {
+          input.value = '';
+          loadMemories();
+        }
+      } catch (err) {
+        alert('Failed to add memory: ' + err.message);
+      }
+    }
+
+    // Composio Integrations Loader
+    async function loadIntegrations() {
+      const listEl = document.getElementById('integrationsList');
+      listEl.innerHTML = '<div class="text-slate-500 text-center py-6">Checking integrations...</div>';
+      try {
+        const res = await fetch(`${API}/integrations/status`, {
+          headers: { 'Authorization': `Bearer ${token()}` },
+        });
+        if (!res.ok) throw new Error('Failed to fetch status');
+        const data = await res.json();
+        const connected = new Set(data.connected_apps || []);
+
+        const appIcons = {
+          GMAIL: '✉️', GCALENDAR: '📅', GDRIVE: '📁', GITHUB: '🐙', SLACK: '💬',
+          LINEAR: '🎯', NOTION: '📝', JIRA: '📋', TRELLO: '📑',
+        };
+
+        listEl.innerHTML = (data.available_apps || ['GMAIL', 'GCALENDAR', 'GDRIVE', 'GITHUB', 'SLACK', 'LINEAR']).map(app => {
+          const isConn = connected.has(app);
+          const icon = appIcons[app] || '📦';
+          return `
+            <div class="p-3 bg-slate-950 rounded-xl border border-white/10 flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-xl">${icon}</span>
+                <div>
+                  <div class="font-semibold text-slate-200">${app}</div>
+                  <div class="text-[10px] ${isConn ? 'text-emerald-400' : 'text-slate-500'}">
+                    ${isConn ? '● Connected' : '○ Not connected'}
+                  </div>
+                </div>
+              </div>
+              <button onclick="connectApp('${app}')" class="px-2.5 py-1 rounded-lg text-xs font-medium ${
+                isConn ? 'bg-slate-800 text-slate-400' : 'bg-blue-600 hover:bg-blue-500 text-white'
+              }">
+                ${isConn ? 'Reconnect' : 'Connect'}
+              </button>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        listEl.innerHTML = `<div class="text-rose-400 text-center py-4">Error: ${err.message}</div>`;
+      }
+    }
+
+    async function connectApp(app) {
+      try {
+        const res = await fetch(`${API}/integrations/connect/${app}`, {
+          headers: { 'Authorization': `Bearer ${token()}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.connection_url) {
+            window.open(data.connection_url, '_blank', 'width=600,height=700');
+          }
+        } else {
+          alert('Could not initiate connection');
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('hermes_token');
+      window.location.href = '/static/index.html';
+    }
+
+    // Initial Welcome Message
+    addMessage('assistant', `👋 **Welcome to Hermes Enterprise Agent!**
+
+I'm your intelligent autonomous copilot with:
+- **Continuous Learning Memory:** I automatically remember your projects, preferences, and key details in pgvector HNSW storage.
+- **Multimodal Intelligence:** Real-time Groq Whisper speech recognition, ElevenLabs voice, and vision.
+- **Generative UI:** Ask me for metrics or comparisons to render live interactive charts (Chart.js), or request architecture diagrams to view live Mermaid flowcharts!
+- **Productivity Tools:** Click **Tools & OAuth** at the top to connect your Google Workspace (Gmail, Calendar, Drive), GitHub, Slack, or Linear in 1-click via Composio.`);
+
+  </script>
+</body>
+</html>

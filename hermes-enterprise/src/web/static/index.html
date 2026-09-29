@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hermes Enterprise — Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 flex items-center justify-center">
+  <div class="bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl p-10 w-full max-w-md border border-white/20">
+    <div class="text-center mb-8">
+      <div class="text-5xl mb-3">🤖</div>
+      <h1 class="text-3xl font-bold text-white">Hermes Enterprise</h1>
+      <p class="text-slate-400 mt-1 text-sm">Multi-Tenant AI Agent Platform</p>
+    </div>
+    <div id="error" class="hidden bg-red-500/20 border border-red-500 text-red-200 rounded-lg p-3 mb-4 text-sm"></div>
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-slate-300 text-sm font-medium mb-1">Username or Email</label>
+        <input id="username" type="text" required placeholder="admin or user@company.com"
+          class="w-full bg-white/10 border border-white/20 text-white placeholder-slate-500 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+      </div>
+      <div>
+        <label class="block text-slate-300 text-sm font-medium mb-1">Password</label>
+        <input id="password" type="password" required placeholder="••••••••"
+          class="w-full bg-white/10 border border-white/20 text-white placeholder-slate-500 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+      </div>
+      <button type="submit"
+        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition-all duration-200 mt-2">
+        Sign In →
+      </button>
+    </form>
+  </div>
+  <script>
+    const API = '';
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errDiv = document.getElementById('error');
+      errDiv.classList.add('hidden');
+      const body = new URLSearchParams({
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+      });
+      try {
+        const res = await fetch(`${API}/auth/login`, { method: 'POST', body, headers: {'Content-Type': 'application/x-www-form-urlencoded'} });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Login failed'); }
+        const { access_token } = await res.json();
+        localStorage.setItem('hermes_token', access_token);
+        // Decode role from JWT payload
+        const payload = JSON.parse(atob(access_token.split('.')[1]));
+        window.location.href = payload.role === 'admin' ? '/static/admin.html' : '/static/workspace.html';
+      } catch(err) {
+        errDiv.textContent = err.message;
+        errDiv.classList.remove('hidden');
+      }
+    });
+    // Auto-redirect if already logged in
+    const t = localStorage.getItem('hermes_token');
+    if (t) {
+      try {
+        const p = JSON.parse(atob(t.split('.')[1]));
+        if (p.exp * 1000 > Date.now()) {
+          window.location.href = p.role === 'admin' ? '/static/admin.html' : '/static/workspace.html';
+        }
+      } catch(_) {}
+    }
+  </script>
+</body>
+</html>

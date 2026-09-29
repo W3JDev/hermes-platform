@@ -1,32 +1,42 @@
-# Hermes Platform — Self-hosted Multi-Agent Platform
+# Hermes Platform — Self-Hosted Multi-Agent Platform & Web Companion
 
-This repo contains the source code for the Hermes Platform — a self-hosted
-multi-agent AI platform running on a single Coolify-managed host. Multiple
-independent Hermes agents (Jira IT ticketing, helpline support, team projects,
-etc.) share infrastructure (env-vault, postgres-hub, minio, camoufox-pool,
-voice-gateway, ci-watcher) but maintain fully isolated workspaces.
+A complete, production-ready, self-hosted deployment package for the **Nous Hermes Agent Platform**. Runs on any Docker host or Coolify instance with zero vendor lock-in.
 
-## Services
+---
 
-| Directory | Subdomain | Purpose | Image |
-| --- | --- | --- | --- |
-| `env-vault/` | `env-vault.hermes.getbijou.xyz` | Centralized env-var menu (FastAPI + vanilla JS) | Custom (Dockerfile) |
-| `postgres-hub/` | (internal) | Shared Postgres with per-profile DBs | `postgres:16-alpine` |
-| `minio/` | `minio.hermes.getbijou.xyz` | S3-compatible file storage | `minio/minio:latest` |
-| `camoufox-pool/` | `camoufox.hermes.getbijou.xyz` | Anti-detect headless browser pool | Custom (Playwright + Camoufox) |
-| `voice-gateway/` | `voice.hermes.getbijou.xyz` | MiniMax TTS service + Hermes skill | Custom (FastAPI + MiniMax) |
-| `ci-watcher/` | `ci-watcher.hermes.getbijou.xyz` | Auto-updates Hermes from upstream | Custom (Python cron) |
+## What's Included
 
-## Architecture
+* 🌐 **Hermes Web Companion (`hermes-companion/`)**: The full Hermes Desktop frontend compiled for standard web browsers and mobile PWA with real-time WebAudio, WebSocket streaming, and defensive platform shims.
+* 🤖 **Hermes Core Runtime (`hermes-core/`)**: Official Nous Hermes Agent Gateway (port 8642) and Admin Dashboard (port 9119).
+* 🎨 **Hermes Enterprise Platform (`hermes-enterprise/`)**: Interactive GenUI workspace, Canvas, live tool execution stream, and continuous memory engine.
+* 🎙️ **Voice Gateway (`voice-gateway/`)**: MiniMax TTS and real-time audio pipeline.
+* 🧠 **Vector Memory Hub (`postgres-hub/`)**: PostgreSQL 16 with pgvector for persistent long-term memory across sessions.
+* ⚡ **Cache & Message Broker (`redis`)**: Redis 7 for high-speed session caching and pub/sub.
+* 🌐 **Centralized Environment Vault (`env-vault/`)**: Centralized credential management.
+* 🕵️ **Anti-detect Browser Pool (`camoufox-pool/`)**: Playwright + Camoufox headless pool for web exploration tools.
 
-See `/docs/design.md` in the parent workspace for the full design spec.
+---
 
-## Deploying
+## Quick Start
 
-Each service is deployed as a separate Coolify "Application" (or "Service" for
-multi-container stacks). For custom services, Coolify builds from this GitHub
-repo. For off-the-shelf images, Coolify uses `docker_image` deploy.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for full deployment instructions for **Coolify**, **Docker Compose**, and **standalone VPS**.
 
-## License
+```bash
+# 1. Clone repository
+git clone https://github.com/W3JDev/hermes-platform.git
+cd hermes-platform
 
-Internal use only.
+# 2. Configure environment
+cp .env.example .env
+
+# 3. Launch the full platform
+docker compose up -d --build
+```
+
+Access the Web Companion at `http://localhost` (or your configured domain).
+
+---
+
+## License & Credits
+
+Built on top of [Nous Research Hermes Agent](https://github.com/nousresearch/hermes-agent). Internal & commercial use permitted.

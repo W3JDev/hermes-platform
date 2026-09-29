@@ -1,0 +1,120 @@
+version: "3.9"
+
+services:
+  # ── 1. Hermes Web Companion (Browser Desktop App & Reverse Proxy) ───────────
+  hermes-companion:
+    build:
+      context: ./hermes-companion
+      dockerfile: Dockerfile
+    container_name: hermes-companion
+    restart: unless-stopped
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      - hermes-core
+    networks:
+      - hermes-net
+
+  # ── 2. Official Hermes Agent Core (Gateway + Dashboard) ────────────────────
+  hermes-core:
+    build:
+      context: ./hermes-core
+      dockerfile: Dockerfile
+    container_name: hermes-core
+    restart: unless-stopped
+    environment:
+      - HOME=/home/hermes
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+    volumes:
+      - hermes_home:/home/hermes/.hermes
+      - hermes_data:/home/hermes/data
+    networks:
+      - hermes-net
+
+  # ── 3. Hermes Enterprise GenUI Platform ────────────────────────────────────
+  hermes-enterprise:
+    build:
+      context: ./hermes-enterprise
+      dockerfile: Dockerfile
+    container_name: hermes-enterprise
+    restart: unless-stopped
+    depends_on:
+      postgres-hub:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-hermes-db-secret}@postgres-hub:5432/hermes_enterprise
+      - REDIS_URL=redis://redis:6379/0
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production-long-random-string}
+      - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD:-hermes-admin-2026}
+      - ADMIN_DEFAULT_EMAIL=${ADMIN_DEFAULT_EMAIL:-admin@example.com}
+      - ENVIRONMENT=production
+    networks:
+      - hermes-net
+
+  # ── 4. Voice Gateway (MiniMax TTS Service) ─────────────────────────────────
+  voice-gateway:
+    build:
+      context: .
+      dockerfile: voice-gateway/Dockerfile
+    container_name: hermes-voice-gateway
+    restart: unless-stopped
+    environment:
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - MINIMAX_GROUP_ID=${MINIMAX_GROUP_ID:-}
+      - PORT=8202
+    networks:
+      - hermes-net
+
+  # ── 5. PostgreSQL 16 with pgvector ─────────────────────────────────────────
+  postgres-hub:
+    image: pgvector/pgvector:pg16
+    container_name: hermes-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=hermes_enterprise
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-hermes-db-secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hermes_enterprise"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hermes-net
+
+  # ── 6. Redis State & Cache ─────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: hermes-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - hermes-net
+
+networks:
+  hermes-net:
+    driver: bridge
+
+volumes:
+  hermes_home:
+  hermes_data:
+  postgres_data:
+  redis_data:
