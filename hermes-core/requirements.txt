@@ -38,3 +38,20 @@ croniter
 python-telegram-bot>=20.0
 discord.py>=2.0
 aiohttp>=3.9.0
+
+# --- gateway startup closure (hermes_cli.main top-level imports) ---
+Pillow
+anyio
+cryptography
+fastapi
+mcp
+mem0ai
+packaging
+prompt-toolkit
+psutil
+ruamel.yaml
+snowballstemmer
+starlette
+truststore
+wcwidth
+uvicorn
