@@ -1,0 +1,249 @@
+toolsets:
+- browser
+- computer_use
+- cronjob
+- delegation
+- terminal
+- code_execution
+- file
+- memory
+- skills
+- web
+- vision
+- stt
+- tts
+agent:
+  max_turns: 200
+  api_max_retries: 3
+  service_tier: auto
+  disabled_toolsets: []
+terminal:
+  backend: local
+  cwd: '~'
+  timeout: 600
+  home_mode: real
+  persistent_shell: true
+web:
+  backend: ddgs
+browser:
+  backend: cua-driver
+  use_real_profile: false
+checkpoints:
+  enabled: true
+context_file_max_chars: 25000
+file_read_max_chars: 200000
+tool_output:
+  max_bytes: 150000
+  max_lines: 5000
+  max_line_length: 2000
+compression:
+  enabled: true
+  threshold: 0.5
+auxiliary:
+  vision:
+    provider: auto
+    model: ''
+    reasoning_effort: high
+  compression:
+    provider: auto
+    model: ''
+  skills_hub:
+    provider: auto
+    model: ''
+  approval:
+    provider: auto
+    model: ''
+  mcp:
+    provider: auto
+    model: ''
+  title_generation:
+    provider: auto
+    model: ''
+  memory_query_rewrite:
+    provider: custom:minimax
+    model: MiniMax-M2.7-highspeed
+  tts_audio_tags:
+    provider: custom:minimax
+    model: MiniMax-M3
+  triage_specifier:
+    provider: auto
+    model: ''
+  kanban_decomposer:
+    provider: auto
+    model: ''
+  profile_describer:
+    provider: auto
+    model: ''
+  goal_judge:
+    provider: custom:minimax
+    model: MiniMax-M2.7-highspeed
+  curator:
+    provider: auto
+    model: ''
+  monitor:
+    provider: custom:minimax
+    model: MiniMax-M2.7-highspeed
+  background_review:
+    provider: custom:minimax
+    model: MiniMax-M2.7-highspeed
+  moa_reference:
+    provider: custom:minimax
+    model: MiniMax-M2.7-highspeed
+  moa_aggregator:
+    provider: custom:minimax
+    model: MiniMax-M2.7-highspeed
+  web_extract:
+    model: ''
+    provider: auto
+display:
+  personality: creative
+  message_reactions: true
+dashboard: {}
+tts:
+  provider: minimax
+  enabled: true
+stt:
+  enabled: true
+  provider: local
+voice:
+  auto_tts: false
+wake_word:
+  enabled: true
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  write_approval: false
+  provider: byterover
+  byterover:
+    auto_extract: 'true'
+delegation:
+  model: claude/claude-sonnet-4-6
+  provider: custom:ai-gateway
+  reasoning_effort: low
+moa:
+  presets:
+    default:
+      reference_models:
+      - enabled: true
+        model: gpt-5.5
+        provider: openai-codex
+      - enabled: true
+        model: deepseek/deepseek-v4-pro
+        provider: openrouter
+      enabled: false
+      degraded_reference_policy: loud
+      fanout: user_turn
+  aggregator:
+    model: anthropic/claude-opus-4.8
+    provider: openrouter
+  degraded_reference_policy: loud
+  enabled: false
+  fanout: user_turn
+  reference_models:
+  - enabled: true
+    model: gpt-5.5
+    provider: openai-codex
+  - enabled: true
+    model: deepseek/deepseek-v4-pro
+    provider: openrouter
+skills:
+  guard_agent_created: false
+  write_approval: false
+timezone: Asia/Kuala_Lumpur
+approvals:
+  mode: 'off'
+command_allowlist:
+- git force push (rewrites remote history)
+- recursive delete
+- script execution via heredoc
+- shell command via -c/-lc flag
+- script execution via -e/-c flag
+- git reset --hard (destroys uncommitted changes)
+- execute_code
+plugins:
+  disabled: []
+  enabled:
+  - a2a-platform
+  - actual-provider
+  - ai-gateway-provider
+  - basic
+  - browser-browser-use
+  - chronos
+  - custom-provider
+  - disk-cleanup
+  - drain
+  - email-platform
+  - gemini-provider
+  - gmi-provider
+  - google_chat-platform
+  - google_meet
+  - grill-tab
+  - hermes-newswire
+  - hermes-office
+  - hermes-tailscale
+  - huggingface-provider
+  - kilocode-provider
+  - kimi-coding-provider
+  - krea
+  - langfuse
+  - minimax
+  - minimax-provider
+  - nous
+  - observability/langfuse
+  - openai
+  - openai-codex
+  - security-guidance
+  - self-hosted
+  - sms-platform
+  - telegram-business
+  - telegram-platform
+  - web-brave-free
+  - web-ddgs
+  - web-exa
+  - web-firecrawl
+  - web-tavily
+  - whatsapp-platform
+hooks:
+  pre_llm_call:
+  - command: command -v curl >/dev/null 2>&1 && curl -s --connect-timeout 1 --max-time
+      2 "http://localhost:2208/api/notify?type=working&sessionId=$NINE_REMOTE_SESSION_ID&tool=hermes"
+      > /dev/null 2>&1 & true
+    timeout: 5
+  pre_tool_call:
+  - command: command -v curl >/dev/null 2>&1 && curl -s --connect-timeout 1 --max-time
+      2 "http://localhost:2208/api/notify?type=working&sessionId=$NINE_REMOTE_SESSION_ID&tool=hermes"
+      > /dev/null 2>&1 & true
+    timeout: 5
+  post_tool_call:
+  - command: command -v curl >/dev/null 2>&1 && curl -s --connect-timeout 1 --max-time
+      2 "http://localhost:2208/api/notify?type=working&sessionId=$NINE_REMOTE_SESSION_ID&tool=hermes"
+      > /dev/null 2>&1 & true
+    timeout: 5
+  pre_approval_request:
+  - command: command -v curl >/dev/null 2>&1 && curl -s --connect-timeout 1 --max-time
+      2 "http://localhost:2208/api/notify?type=blocked&sessionId=$NINE_REMOTE_SESSION_ID&tool=hermes"
+      > /dev/null 2>&1 & true
+    timeout: 5
+  post_llm_call:
+  - command: command -v curl >/dev/null 2>&1 && curl -s --connect-timeout 1 --max-time
+      2 "http://localhost:2208/api/notify?type=done&sessionId=$NINE_REMOTE_SESSION_ID&tool=hermes"
+      > /dev/null 2>&1 & true
+    timeout: 5
+hooks_auto_accept: true
+security: {}
+local_runtime:
+  enabled: true
+_config_version: 46
+DASHBOARD_CORS_ORIGINS: '*'
+api_server:
+  cors_origins:
+  - '*'
+  enabled: true
+  host: 0.0.0.0
+  port: 9119
+image_gen:
+  model: image-01
+  provider: minimax
+model: ${HERMES_MODEL:-openrouter/auto}
+comment: Full-powers Hermes config for Dokploy. computer_use + browser + cronjob(proactive/long-running)
+  + delegation(sub-agents inherit). Provider keys via env. Mirrors hermes-local setup.
