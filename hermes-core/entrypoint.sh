@@ -28,7 +28,11 @@ done
 
 echo "[Hermes Core] Backend on port 8642 is live and healthy."
 
-# Launch admin dashboard in foreground on port 9119
-echo "[Hermes Core] Starting Hermes Dashboard on 0.0.0.0:9119..."
-exec hermes dashboard --host 0.0.0.0 --port 9119 --no-open --skip-build
+# Launch admin dashboard best-effort in background (must never kill the gateway)
+echo "[Hermes Core] Starting Hermes Dashboard on 0.0.0.0:9119 (best-effort)..."
+( hermes dashboard --host 0.0.0.0 --port 9119 --no-open --skip-build \
+    || echo "[Hermes Core] Dashboard exited or failed to start; gateway continues." ) &
+
+# Keep the backend serve process as the container's foreground process
+wait $SERVE_PID
 
