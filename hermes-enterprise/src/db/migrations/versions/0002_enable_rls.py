@@ -25,32 +25,35 @@ TABLES_WITH_RLS = [
 
 def upgrade() -> None:
     # 1. Create helper functions
-    op.execute("""
-    CREATE OR REPLACE FUNCTION current_app_tenant_id() RETURNS UUID AS $$
+        op.execute("""
+CREATE OR REPLACE FUNCTION current_app_tenant_id() RETURNS UUID AS $$
     BEGIN
         RETURN NULLIF(current_setting('app.current_tenant_id', true), '')::uuid;
     EXCEPTION WHEN OTHERS THEN
         RETURN NULL;
     END;
     $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
-
-    CREATE OR REPLACE FUNCTION current_app_user_id() RETURNS UUID AS $$
+    """)
+    op.execute("""
+CREATE OR REPLACE FUNCTION current_app_user_id() RETURNS UUID AS $$
     BEGIN
         RETURN NULLIF(current_setting('app.current_user_id', true), '')::uuid;
     EXCEPTION WHEN OTHERS THEN
         RETURN NULL;
     END;
     $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
-
-    CREATE OR REPLACE FUNCTION is_app_admin() RETURNS BOOLEAN AS $$
+    """)
+    op.execute("""
+CREATE OR REPLACE FUNCTION is_app_admin() RETURNS BOOLEAN AS $$
     BEGIN
         RETURN COALESCE(current_setting('app.is_admin', true), 'false') = 'true';
     EXCEPTION WHEN OTHERS THEN
         RETURN FALSE;
     END;
     $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
-
-    CREATE OR REPLACE FUNCTION is_system_bypass() RETURNS BOOLEAN AS $$
+    """)
+    op.execute("""
+CREATE OR REPLACE FUNCTION is_system_bypass() RETURNS BOOLEAN AS $$
     BEGIN
         RETURN COALESCE(current_setting('app.bypass_rls', true), 'off') = 'on';
     EXCEPTION WHEN OTHERS THEN
@@ -60,8 +63,8 @@ def upgrade() -> None:
     """)
 
     # 2. Stored Database Function: search_hybrid_memories (PROJECT.md line 111)
-    op.execute("""
-    CREATE OR REPLACE FUNCTION search_hybrid_memories(
+        op.execute("""
+CREATE OR REPLACE FUNCTION search_hybrid_memories(
         p_tenant_id UUID,
         p_user_id UUID,
         p_query_text TEXT,
@@ -151,18 +154,22 @@ def upgrade() -> None:
 
     # 4. Create Isolation Policies
     # Tenants
+        op.execute("""
+DROP POLICY IF EXISTS tenant_isolation_policy ON tenants;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS tenant_isolation_policy ON tenants;
-    CREATE POLICY tenant_isolation_policy ON tenants
+CREATE POLICY tenant_isolation_policy ON tenants
         FOR ALL
         USING (is_system_bypass() OR id = current_app_tenant_id())
         WITH CHECK (is_system_bypass() OR id = current_app_tenant_id());
     """)
 
     # Users
+        op.execute("""
+DROP POLICY IF EXISTS users_isolation_policy ON users;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS users_isolation_policy ON users;
-    CREATE POLICY users_isolation_policy ON users
+CREATE POLICY users_isolation_policy ON users
         FOR ALL
         USING (
             is_system_bypass()
@@ -181,9 +188,11 @@ def upgrade() -> None:
     """)
 
     # User Sessions
+        op.execute("""
+DROP POLICY IF EXISTS user_sessions_isolation_policy ON user_sessions;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS user_sessions_isolation_policy ON user_sessions;
-    CREATE POLICY user_sessions_isolation_policy ON user_sessions
+CREATE POLICY user_sessions_isolation_policy ON user_sessions
         FOR ALL
         USING (
             is_system_bypass()
@@ -202,9 +211,11 @@ def upgrade() -> None:
     """)
 
     # Invitations
+        op.execute("""
+DROP POLICY IF EXISTS invitations_isolation_policy ON invitations;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS invitations_isolation_policy ON invitations;
-    CREATE POLICY invitations_isolation_policy ON invitations
+CREATE POLICY invitations_isolation_policy ON invitations
         FOR ALL
         USING (
             is_system_bypass()
@@ -223,9 +234,11 @@ def upgrade() -> None:
     """)
 
     # User Preferences
+        op.execute("""
+DROP POLICY IF EXISTS user_preferences_isolation_policy ON user_preferences;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS user_preferences_isolation_policy ON user_preferences;
-    CREATE POLICY user_preferences_isolation_policy ON user_preferences
+CREATE POLICY user_preferences_isolation_policy ON user_preferences
         FOR ALL
         USING (
             is_system_bypass()
@@ -244,9 +257,11 @@ def upgrade() -> None:
     """)
 
     # Conversations
+        op.execute("""
+DROP POLICY IF EXISTS conversations_isolation_policy ON conversations;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS conversations_isolation_policy ON conversations;
-    CREATE POLICY conversations_isolation_policy ON conversations
+CREATE POLICY conversations_isolation_policy ON conversations
         FOR ALL
         USING (
             is_system_bypass()
@@ -265,9 +280,11 @@ def upgrade() -> None:
     """)
 
     # Messages
+        op.execute("""
+DROP POLICY IF EXISTS messages_isolation_policy ON messages;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS messages_isolation_policy ON messages;
-    CREATE POLICY messages_isolation_policy ON messages
+CREATE POLICY messages_isolation_policy ON messages
         FOR ALL
         USING (
             is_system_bypass()
@@ -286,9 +303,11 @@ def upgrade() -> None:
     """)
 
     # User Files
+        op.execute("""
+DROP POLICY IF EXISTS user_files_isolation_policy ON user_files;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS user_files_isolation_policy ON user_files;
-    CREATE POLICY user_files_isolation_policy ON user_files
+CREATE POLICY user_files_isolation_policy ON user_files
         FOR ALL
         USING (
             is_system_bypass()
@@ -307,9 +326,11 @@ def upgrade() -> None:
     """)
 
     # Memory Embeddings
+        op.execute("""
+DROP POLICY IF EXISTS memory_embeddings_isolation_policy ON memory_embeddings;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS memory_embeddings_isolation_policy ON memory_embeddings;
-    CREATE POLICY memory_embeddings_isolation_policy ON memory_embeddings
+CREATE POLICY memory_embeddings_isolation_policy ON memory_embeddings
         FOR ALL
         USING (
             is_system_bypass()
@@ -328,9 +349,11 @@ def upgrade() -> None:
     """)
 
     # Token Usage
+        op.execute("""
+DROP POLICY IF EXISTS token_usage_isolation_policy ON token_usage;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS token_usage_isolation_policy ON token_usage;
-    CREATE POLICY token_usage_isolation_policy ON token_usage
+CREATE POLICY token_usage_isolation_policy ON token_usage
         FOR ALL
         USING (
             is_system_bypass()
@@ -349,9 +372,11 @@ def upgrade() -> None:
     """)
 
     # Audit Logs
+        op.execute("""
+DROP POLICY IF EXISTS audit_logs_select_policy ON audit_logs;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS audit_logs_select_policy ON audit_logs;
-    CREATE POLICY audit_logs_select_policy ON audit_logs
+CREATE POLICY audit_logs_select_policy ON audit_logs
         FOR SELECT
         USING (
             is_system_bypass()
@@ -360,9 +385,12 @@ def upgrade() -> None:
                 AND is_app_admin()
             )
         );
-
-    DROP POLICY IF EXISTS audit_logs_insert_policy ON audit_logs;
-    CREATE POLICY audit_logs_insert_policy ON audit_logs
+    """)
+    op.execute("""
+DROP POLICY IF EXISTS audit_logs_insert_policy ON audit_logs;
+    """)
+    op.execute("""
+CREATE POLICY audit_logs_insert_policy ON audit_logs
         FOR INSERT
         WITH CHECK (
             is_system_bypass()
@@ -371,9 +399,11 @@ def upgrade() -> None:
     """)
 
     # Tenant Gateway Configs
+        op.execute("""
+DROP POLICY IF EXISTS tenant_gateway_configs_isolation_policy ON tenant_gateway_configs;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS tenant_gateway_configs_isolation_policy ON tenant_gateway_configs;
-    CREATE POLICY tenant_gateway_configs_isolation_policy ON tenant_gateway_configs
+CREATE POLICY tenant_gateway_configs_isolation_policy ON tenant_gateway_configs
         FOR ALL
         USING (
             is_system_bypass()
@@ -392,9 +422,11 @@ def upgrade() -> None:
     """)
 
     # User Gateway Bindings
+        op.execute("""
+DROP POLICY IF EXISTS user_gateway_bindings_isolation_policy ON user_gateway_bindings;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS user_gateway_bindings_isolation_policy ON user_gateway_bindings;
-    CREATE POLICY user_gateway_bindings_isolation_policy ON user_gateway_bindings
+CREATE POLICY user_gateway_bindings_isolation_policy ON user_gateway_bindings
         FOR ALL
         USING (
             is_system_bypass()
@@ -413,9 +445,11 @@ def upgrade() -> None:
     """)
 
     # Gateway Conversational Sessions
+        op.execute("""
+DROP POLICY IF EXISTS gateway_conversational_sessions_isolation_policy ON gateway_conversational_sessions;
+    """)
     op.execute("""
-    DROP POLICY IF EXISTS gateway_conversational_sessions_isolation_policy ON gateway_conversational_sessions;
-    CREATE POLICY gateway_conversational_sessions_isolation_policy ON gateway_conversational_sessions
+CREATE POLICY gateway_conversational_sessions_isolation_policy ON gateway_conversational_sessions
         FOR ALL
         USING (
             is_system_bypass()
