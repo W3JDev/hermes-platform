@@ -38,6 +38,8 @@ COPY --from=builder --chown=openmuse:openmuse /app/dist ./dist
 COPY --from=builder --chown=openmuse:openmuse /app/package.json ./package.json
 COPY --from=builder --chown=openmuse:openmuse /app/apps/mobile/package.json ./apps/mobile/package.json
 COPY --from=builder --chown=openmuse:openmuse /app/packages ./packages
+# Web client: server serves static UI from ./client (app.ts serveStatic root)
+COPY --from=builder --chown=openmuse:openmuse /app/apps/mobile/dist/web ./client
 
 USER openmuse
 VOLUME ["/data"]
