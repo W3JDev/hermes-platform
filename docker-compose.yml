@@ -110,7 +110,7 @@ services:
     container_name: hermes-enterprise
     restart: unless-stopped
     ports:
-      - "${ENTERPRISE_PORT:-8001}:8001"
+      - "${ENTERPRISE_PORT:-8001}:8000"
     depends_on:
       postgres-hub:
         condition: service_healthy
