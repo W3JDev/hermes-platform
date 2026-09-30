@@ -31,7 +31,10 @@ ENV NODE_ENV=production \
 RUN groupadd --system --gid 1001 openmuse \
   && useradd --system --uid 1001 --gid openmuse --home /data --shell /usr/sbin/nologin openmuse \
   && mkdir -p /data \
-  && chown -R openmuse:openmuse /app /data
+  && chown -R openmuse:openmuse /app /data \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends docker.io \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=openmuse:openmuse /app/node_modules ./node_modules
 COPY --from=builder --chown=openmuse:openmuse /app/dist ./dist
@@ -40,12 +43,16 @@ COPY --from=builder --chown=openmuse:openmuse /app/apps/mobile/package.json ./ap
 COPY --from=builder --chown=openmuse:openmuse /app/packages ./packages
 # Web client: server serves static UI from ./client (app.ts serveStatic root)
 COPY --from=builder --chown=openmuse:openmuse /app/apps/mobile/dist/web ./client
+# Computer image build context: entrypoint builds it on the host on first run.
+COPY --from=builder --chown=openmuse:openmuse /app/apps/computer ./computer-src
+COPY --chown=root:root entrypoint.sh /app/entrypoint.sh
+RUN chmod 0755 /app/entrypoint.sh
 
-USER openmuse
 VOLUME ["/data"]
 EXPOSE 8787
 
 HEALTHCHECK --interval=20s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["node", "dist/apps/server/src/index.js"]
