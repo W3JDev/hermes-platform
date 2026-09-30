@@ -33,8 +33,12 @@ services:
       - OPENCOMPUTER_API_KEY=${OPENCOMPUTER_API_KEY:-}
       - OPENCOMPUTER_PROJECT_ID=${OPENCOMPUTER_PROJECT_ID:-}
       - DATA_DIR=/data
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-http://hermes-platform-0ascn6-73c05b-169-58-147-169.sslip.io}
+      - COMPUTER_ENABLED=${COMPUTER_ENABLED:-true}
+      - COMPUTER_IMAGE=${COMPUTER_IMAGE:-openmuse-computer:local}
     volumes:
       - openmuse_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - hermes-core
       - openmuse-worker
