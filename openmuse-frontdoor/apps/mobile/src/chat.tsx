@@ -28,6 +28,7 @@ import { BrowserThreadCard } from "./computer";
 import { ConversationQueue, type QueuedMessage } from "./conversation-queue";
 import { runConversationTurn } from "./conversation-run";
 import { MailToolCard } from "./mail-tool-card";
+import { StoryCards } from "./story-cards";
 import { FileThreadCard, TaskThreadCard } from "./thread-artifacts";
 import { type Selection, useMuseThread } from "./threads";
 import { Button, Card, CheckRow, colors, ErrorNotice, s } from "./ui";
@@ -63,6 +64,14 @@ export function WorkspaceTools() {
     parameters: displayParameters,
     render: ({ args, result, status }) => (
       <BrowserToolCard url={args.url} result={result} loading={status !== "complete"} />
+    ),
+  });
+  useRenderTool({
+    name: "present_cards",
+    description: "Show agent-presented stories and links as tappable cards",
+    parameters: displayParameters,
+    render: ({ args, status }) => (
+      <StoryCards args={args} loading={status !== "complete"} />
     ),
   });
   useRenderTool({
