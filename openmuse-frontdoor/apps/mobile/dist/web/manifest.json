@@ -1,0 +1,20 @@
+{
+  "short_name": "Hermes Muse",
+  "name": "Hermes Muse — Autonomous Personal Agent",
+  "description": "Next-Generation Autonomous Personal Agent with Real-Time Voice, Computer Sandbox, and Live Browser Takeover.",
+  "icons": [
+    {
+      "src": "/assets/capybara.png",
+      "type": "image/png",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "prefer_related_applications": false
+}

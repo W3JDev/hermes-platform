@@ -17,8 +17,8 @@ COPY tsconfig.json tsconfig.build.json biome.json ./
 COPY apps ./apps
 COPY packages ./packages
 
-# Build backend server -> dist/apps/server/src/index.js
-RUN pnpm build:server
+# Build backend server -> dist/apps/server/src/index.js and web client if not present
+RUN pnpm build:server && (test -d apps/mobile/dist/web || pnpm build:web)
 
 FROM node:22-bookworm-slim AS runner
 

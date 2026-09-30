@@ -1,6 +1,9 @@
 node_modules/
 .expo/
 dist/
+!apps/mobile/dist/
+!apps/mobile/dist/web/
+!apps/mobile/dist/web/**
 build/
 .env
 .env.local
