@@ -50,9 +50,20 @@ export async function createApp(
   const runtime = makeRuntime(config, agent, auth, intelligence);
   const app = new Hono<{ Variables: { owner: string } }>();
   const origins = new Set([...config.allowedOrigins, new URL(config.publicUrl).origin]);
+  function isOriginAllowed(origin: string | undefined, hostHeader: string | undefined): boolean {
+    if (!origin) return true;
+    if (origins.has("*") || config.mode === "sample") return true;
+    if (origins.has(origin)) return true;
+    if (hostHeader) {
+      if (origin === `http://${hostHeader}` || origin === `https://${hostHeader}`) return true;
+    }
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+    return false;
+  }
   app.use("*", async (c, next) => {
     const origin = c.req.header("origin");
-    if (origin && !origins.has(origin)) return c.json({ error: "Origin is not allowed" }, 403);
+    const host = c.req.header("host");
+    if (origin && !isOriginAllowed(origin, host)) return c.json({ error: "Origin is not allowed" }, 403);
     c.header("X-Content-Type-Options", "nosniff");
     c.header("Referrer-Policy", "no-referrer");
     c.header("Cache-Control", "no-store");
@@ -61,7 +72,7 @@ export async function createApp(
   app.use(
     "*",
     cors({
-      origin: (origin) => (origins.has(origin) ? origin : undefined),
+      origin: (origin, c) => (isOriginAllowed(origin, c.req.header("host")) ? origin : undefined),
       allowHeaders: ["Content-Type", "Authorization"],
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       credentials: true,

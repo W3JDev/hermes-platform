@@ -106,7 +106,8 @@ export function readConfig(): Config {
     boatDevApiKey: process.env.BOAT_DEV_API_KEY,
     boatDevEndpoint: process.env.BOAT_DEV_ENDPOINT ?? "https://api.boat.dev/v1",
     allowedOrigins: (
-      process.env.ALLOWED_ORIGINS ?? "http://localhost:8081,http://127.0.0.1:8081"
+      process.env.ALLOWED_ORIGINS ??
+      "http://localhost:8081,http://127.0.0.1:8081,http://localhost:8888,http://127.0.0.1:8888,http://localhost:8787,http://127.0.0.1:8787,http://localhost:8088"
     ).split(","),
   };
   if (
